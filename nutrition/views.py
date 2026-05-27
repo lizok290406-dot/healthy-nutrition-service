@@ -165,10 +165,7 @@ def ration_detail(request):
                     Ration.objects.create(user=user, date=new_date)
                     messages.success(request, 'Рацион успешно создан.')
                 else:
-                    messages.info(
-                        request,
-                        'Рацион на эту дату уже существует.'
-                    )
+                    messages.info(request, 'Рацион на эту дату уже существует.')
 
                 return redirect(f'/ration/?date={new_date}')
 

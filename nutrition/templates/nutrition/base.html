@@ -271,7 +271,9 @@
                 <a href="{% url 'ration_detail' %}">Рацион</a>
                 <a href="{% url 'ration_analysis' %}">Анализ</a>
                 <a href="{% url 'dashboard' %}">Дашборд</a>
-                <a href="/admin/">Админка</a>
+                {% if user.is_staff %}
+                    <a href="/admin/">Админка</a>
+                {% endif %}
                 <a href="{% url 'logout' %}">Выйти</a>
             {% else %}
                 <a href="{% url 'login' %}">Войти</a>
