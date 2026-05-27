@@ -1,21 +1,41 @@
 import pandas as pd
 import plotly.express as px
-from django.shortcuts import render, get_object_or_404, redirect
-from django.contrib.auth.models import User
+
 from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
+from django.shortcuts import get_object_or_404, redirect, render
 
-from .models import Product, Ration, Category, RationItem, Profile
-from .forms import RationItemForm, ProfileForm, RationForm, RegisterForm
+from .forms import ProfileForm, RationForm, RationItemForm, RegisterForm
+from .models import Category, Product, Profile, Ration, RationItem
+
 
 def home(request):
     return render(request, 'nutrition/home.html')
 
+
+def register_view(request):
+    if request.user.is_authenticated:
+        return redirect('profile_detail')
+
+    if request.method == 'POST':
+        form = RegisterForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            Profile.objects.get_or_create(user=user)
+            login(request, user)
+            messages.success(request, 'Регистрация прошла успешно.')
+            return redirect('profile_detail')
+    else:
+        form = RegisterForm()
+
+    return render(request, 'nutrition/register.html', {'form': form})
+
+
 @login_required
 def profile_detail(request):
     user = request.user
-    profile, created = Profile.objects.get_or_create(user=user)
+    profile, _ = Profile.objects.get_or_create(user=user)
 
     if request.method == 'POST':
         form = ProfileForm(request.POST, instance=profile)
@@ -32,6 +52,7 @@ def profile_detail(request):
         'form': form,
     }
     return render(request, 'nutrition/profile.html', context)
+
 
 def product_list(request):
     products = Product.objects.all()
@@ -57,7 +78,11 @@ def product_list(request):
             elif sort_by == 'price':
                 products = sorted(products, key=lambda x: x.price_per_100g)
             elif sort_by == 'proteins':
-                products = sorted(products, key=lambda x: x.proteins_per_100g, reverse=True)
+                products = sorted(
+                    products,
+                    key=lambda x: x.proteins_per_100g,
+                    reverse=True
+                )
         else:
             if sort_by == 'calories':
                 products = products.order_by('calories_per_100g')
@@ -79,7 +104,7 @@ def product_list(request):
 @login_required
 def ration_detail(request):
     user = request.user
-    profile, created = Profile.objects.get_or_create(user=user)
+    profile, _ = Profile.objects.get_or_create(user=user)
 
     selected_date = request.GET.get('date')
     available_rations = Ration.objects.filter(user=user).order_by('-date')
@@ -96,13 +121,19 @@ def ration_detail(request):
 
             if ration_form.is_valid():
                 new_date = ration_form.cleaned_data['date']
-                existing_ration = Ration.objects.filter(user=user, date=new_date).first()
+                existing_ration = Ration.objects.filter(
+                    user=user,
+                    date=new_date
+                ).first()
 
                 if not existing_ration:
                     Ration.objects.create(user=user, date=new_date)
                     messages.success(request, 'Рацион успешно создан.')
                 else:
-                    messages.info(request, 'Рацион на эту дату уже существует.')
+                    messages.info(
+                        request,
+                        'Рацион на эту дату уже существует.'
+                    )
 
                 return redirect(f'/ration/?date={new_date}')
 
@@ -134,10 +165,11 @@ def ration_detail(request):
     }
     return render(request, 'nutrition/ration_detail.html', context)
 
+
 @login_required
 def ration_analysis(request):
     user = request.user
-    profile, created = Profile.objects.get_or_create(user=user)
+    profile, _ = Profile.objects.get_or_create(user=user)
 
     selected_date = request.GET.get('date')
     available_rations = Ration.objects.filter(user=user).order_by('-date')
@@ -155,6 +187,7 @@ def ration_analysis(request):
         'selected_date': selected_date,
     }
     return render(request, 'nutrition/ration_analysis.html', context)
+
 
 @login_required
 def dashboard(request):
@@ -215,9 +248,14 @@ def dashboard(request):
     }
     return render(request, 'nutrition/dashboard.html', context)
 
+
 @login_required
 def delete_ration_item(request, item_id):
-    item = get_object_or_404(RationItem, id=item_id, ration__user=request.user)
+    item = get_object_or_404(
+        RationItem,
+        id=item_id,
+        ration__user=request.user
+    )
     ration_date = item.ration.date
 
     if request.method == 'POST':
@@ -225,20 +263,3 @@ def delete_ration_item(request, item_id):
         messages.success(request, 'Продукт удалён из рациона.')
 
     return redirect(f'/ration/?date={ration_date}')
-
-def register_view(request):
-    if request.user.is_authenticated:
-        return redirect('profile_detail')
-
-    if request.method == 'POST':
-        form = RegisterForm(request.POST)
-        if form.is_valid():
-            user = form.save()
-            Profile.objects.get_or_create(user=user)
-            login(request, user)
-            messages.success(request, 'Регистрация прошла успешно.')
-            return redirect('profile_detail')
-    else:
-        form = RegisterForm()
-
-    return render(request, 'nutrition/register.html', {'form': form})
