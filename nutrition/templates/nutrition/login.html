@@ -1,0 +1,17 @@
+{% extends 'nutrition/base.html' %}
+
+{% block title %}Вход{% endblock %}
+
+{% block content %}
+<h2>Вход</h2>
+
+<div class="form-card" style="max-width: 420px;">
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="main-btn">Войти</button>
+    </form>
+</div>
+
+<p>Нет аккаунта? <a href="{% url 'register' %}">Зарегистрироваться</a></p>
+{% endblock %}

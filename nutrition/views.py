@@ -2,15 +2,19 @@ import pandas as pd
 import plotly.express as px
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.models import User
-from .models import Product, Ration, Category, RationItem
-from .forms import RationItemForm, ProfileForm, RationForm
 from django.contrib import messages
+from django.contrib.auth import login
+from django.contrib.auth.decorators import login_required
+
+from .models import Product, Ration, Category, RationItem, Profile
+from .forms import RationItemForm, ProfileForm, RationForm, RegisterForm
 
 def home(request):
     return render(request, 'nutrition/home.html')
 
-def profile_detail(request, user_id):
-    user = get_object_or_404(User, id=user_id)
+@login_required
+def profile_detail(request):
+    user = request.user
     profile, created = Profile.objects.get_or_create(user=user)
 
     if request.method == 'POST':
@@ -18,7 +22,7 @@ def profile_detail(request, user_id):
         if form.is_valid():
             form.save()
             messages.success(request, 'Профиль успешно сохранён.')
-            return redirect('profile_detail', user_id=user.id)
+            return redirect('profile_detail')
     else:
         form = ProfileForm(instance=profile)
 
@@ -28,7 +32,6 @@ def profile_detail(request, user_id):
         'form': form,
     }
     return render(request, 'nutrition/profile.html', context)
-
 
 def product_list(request):
     products = Product.objects.all()
@@ -73,8 +76,9 @@ def product_list(request):
     return render(request, 'nutrition/product_list.html', context)
 
 
-def ration_detail(request, user_id):
-    user = get_object_or_404(User, id=user_id)
+@login_required
+def ration_detail(request):
+    user = request.user
     profile, created = Profile.objects.get_or_create(user=user)
 
     selected_date = request.GET.get('date')
@@ -100,7 +104,7 @@ def ration_detail(request, user_id):
                 else:
                     messages.info(request, 'Рацион на эту дату уже существует.')
 
-                return redirect(f'/ration/{user.id}/?date={new_date}')
+                return redirect(f'/ration/?date={new_date}')
 
         elif 'add_item' in request.POST:
             item_form = RationItemForm(request.POST)
@@ -113,8 +117,8 @@ def ration_detail(request, user_id):
                 messages.success(request, 'Продукт добавлен в рацион.')
 
                 if selected_date:
-                    return redirect(f'/ration/{user.id}/?date={selected_date}')
-                return redirect('ration_detail', user_id=user.id)
+                    return redirect(f'/ration/?date={selected_date}')
+                return redirect('ration_detail')
     else:
         item_form = RationItemForm()
         ration_form = RationForm()
@@ -130,8 +134,9 @@ def ration_detail(request, user_id):
     }
     return render(request, 'nutrition/ration_detail.html', context)
 
-def ration_analysis(request, user_id):
-    user = get_object_or_404(User, id=user_id)
+@login_required
+def ration_analysis(request):
+    user = request.user
     profile, created = Profile.objects.get_or_create(user=user)
 
     selected_date = request.GET.get('date')
@@ -151,8 +156,9 @@ def ration_analysis(request, user_id):
     }
     return render(request, 'nutrition/ration_analysis.html', context)
 
-def dashboard(request, user_id):
-    user = get_object_or_404(User, id=user_id)
+@login_required
+def dashboard(request):
+    user = request.user
     rations = Ration.objects.filter(user=user).order_by('date')
 
     data = []
@@ -209,13 +215,30 @@ def dashboard(request, user_id):
     }
     return render(request, 'nutrition/dashboard.html', context)
 
+@login_required
 def delete_ration_item(request, item_id):
-    item = get_object_or_404(RationItem, id=item_id)
-    user_id = item.ration.user.id
+    item = get_object_or_404(RationItem, id=item_id, ration__user=request.user)
     ration_date = item.ration.date
 
     if request.method == 'POST':
         item.delete()
         messages.success(request, 'Продукт удалён из рациона.')
 
-    return redirect(f'/ration/{user_id}/?date={ration_date}')
+    return redirect(f'/ration/?date={ration_date}')
+
+def register_view(request):
+    if request.user.is_authenticated:
+        return redirect('profile_detail')
+
+    if request.method == 'POST':
+        form = RegisterForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            Profile.objects.get_or_create(user=user)
+            login(request, user)
+            messages.success(request, 'Регистрация прошла успешно.')
+            return redirect('profile_detail')
+    else:
+        form = RegisterForm()
+
+    return render(request, 'nutrition/register.html', {'form': form})
