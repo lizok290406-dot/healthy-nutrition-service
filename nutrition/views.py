@@ -11,7 +11,7 @@ def home(request):
 
 def profile_detail(request, user_id):
     user = get_object_or_404(User, id=user_id)
-    profile = user.profile
+    profile, created = Profile.objects.get_or_create(user=user)
 
     if request.method == 'POST':
         form = ProfileForm(request.POST, instance=profile)
@@ -75,7 +75,7 @@ def product_list(request):
 
 def ration_detail(request, user_id):
     user = get_object_or_404(User, id=user_id)
-    profile = user.profile
+    profile, created = Profile.objects.get_or_create(user=user)
 
     selected_date = request.GET.get('date')
     available_rations = Ration.objects.filter(user=user).order_by('-date')
@@ -132,7 +132,7 @@ def ration_detail(request, user_id):
 
 def ration_analysis(request, user_id):
     user = get_object_or_404(User, id=user_id)
-    profile = user.profile
+    profile, created = Profile.objects.get_or_create(user=user)
 
     selected_date = request.GET.get('date')
     available_rations = Ration.objects.filter(user=user).order_by('-date')
