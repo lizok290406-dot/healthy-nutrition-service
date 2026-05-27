@@ -22,9 +22,22 @@ def register_view(request):
         form = RegisterForm(request.POST)
         if form.is_valid():
             user = form.save()
-            Profile.objects.get_or_create(user=user)
+
+            Profile.objects.get_or_create(
+                user=user,
+                defaults={
+                    'gender': 'female',
+                    'age': 18,
+                    'weight': 60,
+                    'height': 170,
+                    'activity_level': 'medium',
+                    'goal': 'maintain',
+                    'daily_budget': 300,
+                }
+            )
+
             login(request, user)
-            messages.success(request, 'Регистрация прошла успешно.')
+            messages.success(request, 'Регистрация прошла успешно. Заполните профиль.')
             return redirect('profile_detail')
     else:
         form = RegisterForm()
@@ -35,7 +48,18 @@ def register_view(request):
 @login_required
 def profile_detail(request):
     user = request.user
-    profile, _ = Profile.objects.get_or_create(user=user)
+    profile, _ = Profile.objects.get_or_create(
+        user=user,
+        defaults={
+            'gender': 'female',
+            'age': 18,
+            'weight': 60,
+            'height': 170,
+            'activity_level': 'medium',
+            'goal': 'maintain',
+            'daily_budget': 300,
+        }
+    )
 
     if request.method == 'POST':
         form = ProfileForm(request.POST, instance=profile)
@@ -104,7 +128,18 @@ def product_list(request):
 @login_required
 def ration_detail(request):
     user = request.user
-    profile, _ = Profile.objects.get_or_create(user=user)
+    profile, _ = Profile.objects.get_or_create(
+        user=user,
+        defaults={
+            'gender': 'female',
+            'age': 18,
+            'weight': 60,
+            'height': 170,
+            'activity_level': 'medium',
+            'goal': 'maintain',
+            'daily_budget': 300,
+        }
+    )
 
     selected_date = request.GET.get('date')
     available_rations = Ration.objects.filter(user=user).order_by('-date')
@@ -169,7 +204,18 @@ def ration_detail(request):
 @login_required
 def ration_analysis(request):
     user = request.user
-    profile, _ = Profile.objects.get_or_create(user=user)
+    profile, _ = Profile.objects.get_or_create(
+        user=user,
+        defaults={
+            'gender': 'female',
+            'age': 18,
+            'weight': 60,
+            'height': 170,
+            'activity_level': 'medium',
+            'goal': 'maintain',
+            'daily_budget': 300,
+        }
+    )
 
     selected_date = request.GET.get('date')
     available_rations = Ration.objects.filter(user=user).order_by('-date')
