@@ -1,0 +1,124 @@
+{% extends 'nutrition/base.html' %}
+
+{% block title %}Анализ рациона{% endblock %}
+
+{% block content %}
+<h2>Анализ рациона пользователя {{ user_obj.username }}</h2>
+
+<h3>Выбор даты анализа</h3>
+
+<form method="get" style="margin-bottom: 20px;">
+    <select name="date" style="padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; min-width: 220px;">
+        {% for item in available_rations %}
+            <option value="{{ item.date|date:'Y-m-d' }}" {% if ration and item.date == ration.date %}selected{% endif %}>
+                {{ item.date }}
+            </option>
+        {% endfor %}
+    </select>
+    <button type="submit" class="main-btn" style="margin-left: 10px;">Открыть</button>
+</form>
+
+{% if ration %}
+    <h3>Рацион на {{ ration.date }}</h3>
+
+    <div class="summary">
+        <h3>Калорийность</h3>
+        <ul>
+            <li>Норма калорий: {{ profile.get_daily_calories|floatformat:2 }}</li>
+            <li>Фактические калории: {{ ration.total_calories|floatformat:2 }}</li>
+            <li>Разница с нормой: {{ ration.calorie_difference|floatformat:2 }}</li>
+            <li>
+                Статус:
+                <span class="{{ ration.calorie_status_class }}">
+                    {{ ration.calorie_status }}
+                </span>
+            </li>
+        </ul>
+    </div>
+
+    <div class="summary">
+        <h3>Анализ БЖУ</h3>
+        <ul>
+            <li>Норма белков: {{ profile.get_target_proteins|floatformat:2 }} г</li>
+            <li>Фактические белки: {{ ration.total_proteins|floatformat:2 }} г</li>
+            <li>Отклонение по белкам: {{ ration.proteins_difference|floatformat:2 }} г</li>
+
+            <li>Норма жиров: {{ profile.get_target_fats|floatformat:2 }} г</li>
+            <li>Фактические жиры: {{ ration.total_fats|floatformat:2 }} г</li>
+            <li>Отклонение по жирам: {{ ration.fats_difference|floatformat:2 }} г</li>
+
+            <li>Норма углеводов: {{ profile.get_target_carbs|floatformat:2 }} г</li>
+            <li>Фактические углеводы: {{ ration.total_carbs|floatformat:2 }} г</li>
+            <li>Отклонение по углеводам: {{ ration.carbs_difference|floatformat:2 }} г</li>
+        </ul>
+    </div>
+
+    <div class="summary">
+        <h3>Бюджет</h3>
+        <ul>
+            <li>Дневной бюджет: {{ profile.daily_budget }} руб.</li>
+            <li>Стоимость рациона: {{ ration.total_price|floatformat:2 }} руб.</li>
+            <li>
+                Уложился в бюджет:
+                {% if ration.is_within_budget %}
+                    <span class="good">Да</span>
+                {% else %}
+                    <span class="bad">Нет</span>
+                {% endif %}
+            </li>
+        </ul>
+    </div>
+
+    <div class="summary">
+        <h3>Вывод по рациону</h3>
+        <div class="recommendation">
+            {{ ration.recommendation }}
+        </div>
+    </div>
+
+    {% if ration.suggested_products %}
+    <div class="summary">
+        <h3>Рекомендуемые продукты</h3>
+
+        {% for group in ration.suggested_products %}
+            <h4 style="margin-bottom: 8px;">{{ group.title }}</h4>
+            <ul>
+                {% for product in group.items %}
+                    <li>
+                        {{ product.name }} —
+                        Б: {{ product.proteins_per_100g }},
+                        Ж: {{ product.fats_per_100g }},
+                        У: {{ product.carbs_per_100g }},
+                        {{ product.price_per_100g }} руб./100 г
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+        {% if ration.budget_suggested_products %}
+    <div class="summary">
+        <h3>Бюджетные рекомендации</h3>
+
+        {% for group in ration.budget_suggested_products %}
+            <h4 style="margin-bottom: 8px;">{{ group.title }}</h4>
+            <ul>
+                {% for product in group.items %}
+                    <li>
+                        {{ product.name }} —
+                        Б: {{ product.proteins_per_100g }},
+                        Ж: {{ product.fats_per_100g }},
+                        У: {{ product.carbs_per_100g }},
+                        {{ product.price_per_100g }} руб./100 г
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+{% else %}
+    <p>У пользователя пока нет рациона для анализа.</p>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,45 @@
+{% extends 'nutrition/base.html' %}
+
+{% block title %}Дашборд{% endblock %}
+
+{% block content %}
+<h2>Дашборд пользователя {{ user_obj.username }}</h2>
+
+{% if table_data %}
+    <div class="summary">
+        <h3>Сводная таблица рационов</h3>
+        <table>
+            <tr>
+                <th>Дата</th>
+                <th>Калории</th>
+                <th>Стоимость</th>
+                <th>Белки</th>
+                <th>Жиры</th>
+                <th>Углеводы</th>
+            </tr>
+            {% for row in table_data %}
+            <tr>
+                <td>{{ row.date }}</td>
+                <td>{{ row.calories|floatformat:2 }}</td>
+                <td>{{ row.price|floatformat:2 }}</td>
+                <td>{{ row.proteins|floatformat:2 }}</td>
+                <td>{{ row.fats|floatformat:2 }}</td>
+                <td>{{ row.carbs|floatformat:2 }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+
+    <div class="summary">
+        <h3>График калорийности</h3>
+        {{ chart_html|safe }}
+    </div>
+
+    <div class="summary">
+        <h3>График стоимости</h3>
+        {{ price_chart_html|safe }}
+    </div>
+{% else %}
+    <p>Пока нет рационов для отображения на дашборде.</p>
+{% endif %}
+{% endblock %}
