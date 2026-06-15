@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+{% block title %}Вход — NutriTrack{% endblock %}
+
+{% block content %}
+<div class="min-vh-100 d-flex align-items-center py-5"
+     style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-5 col-lg-4">
+
+                <div class="text-center mb-4">
+                    <a href="{% url 'nutrition:home' %}" class="text-decoration-none">
+                        <h2 class="text-white fw-800 mb-1">🥗 NutriTrack</h2>
+                    </a>
+                    <p class="text-white-50">Войдите в свой аккаунт</p>
+                </div>
+
+                <div class="card p-4" style="border-radius: 20px;">
+                    <h4 class="fw-700 mb-4 text-center">Вход</h4>
+
+                    <form method="post">
+                        {% csrf_token %}
+
+                        <div class="mb-3">
+                            <label class="form-label fw-600">
+                                {{ form.username.label }}
+                            </label>
+                            {{ form.username }}
+                            {% if form.username.errors %}
+                            <div class="text-danger small mt-1">
+                                {{ form.username.errors.0 }}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-600">
+                                {{ form.password.label }}
+                            </label>
+                            {{ form.password }}
+                            {% if form.non_field_errors %}
+                            <div class="text-danger small mt-1">
+                                {{ form.non_field_errors.0 }}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100 py-2">
+                            <i class="bi bi-box-arrow-in-right me-2"></i>Войти
+                        </button>
+                    </form>
+
+                    <hr class="my-4">
+                    <p class="text-center text-muted mb-0">
+                        Ещё нет аккаунта?
+                        <a href="{% url 'users:register' %}" class="fw-600"
+                           style="color:#667eea;">Зарегистрироваться</a>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

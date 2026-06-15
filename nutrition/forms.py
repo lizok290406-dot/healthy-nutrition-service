@@ -1,109 +1,143 @@
 from django import forms
-from .models import RationItem, Product, Profile, Ration
-from django.contrib.auth.models import User
+from .models import MealLog, WeightLog, FoodItem, FoodCategory
 
-class RationItemForm(forms.ModelForm):
+
+class MealLogForm(forms.ModelForm):
     class Meta:
-        model = RationItem
-        fields = ['product', 'grams']
+        model = MealLog
+        fields = ['food_item', 'meal_type', 'amount', 'date', 'notes']
+        widgets = {
+            'food_item': forms.Select(attrs={
+                'class': 'form-select',
+                'id': 'food-select',
+            }),
+            'meal_type': forms.Select(attrs={'class': 'form-select'}),
+            'amount': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'placeholder': '100',
+                'min': '1',
+                'step': '0.1',
+            }),
+            'date': forms.DateInput(attrs={
+                'class': 'form-control',
+                'type': 'date',
+            }),
+            'notes': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 2,
+                'placeholder': 'Необязательные заметки...',
+            }),
+        }
+        labels = {
+            'food_item': 'Продукт',
+            'meal_type': 'Приём пищи',
+            'amount': 'Количество (г)',
+            'date': 'Дата',
+            'notes': 'Заметки',
+        }
 
-    product = forms.ModelChoiceField(
-        queryset=Product.objects.all(),
-        label='Продукт'
+    def clean_amount(self):
+        amount = self.cleaned_data.get('amount')
+        if amount and amount <= 0:
+            raise forms.ValidationError('Количество должно быть больше 0.')
+        if amount and amount > 5000:
+            raise forms.ValidationError('Количество не может превышать 5000г.')
+        return amount
+
+
+class WeightLogForm(forms.ModelForm):
+    class Meta:
+        model = WeightLog
+        fields = ['weight', 'date', 'notes']
+        widgets = {
+            'weight': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'placeholder': '70.5',
+                'step': '0.1',
+                'min': '20',
+                'max': '300',
+            }),
+            'date': forms.DateInput(attrs={
+                'class': 'form-control',
+                'type': 'date',
+            }),
+            'notes': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 2,
+                'placeholder': 'Заметки...',
+            }),
+        }
+        labels = {
+            'weight': 'Вес (кг)',
+            'date': 'Дата',
+            'notes': 'Заметки',
+        }
+
+
+class FoodSearchForm(forms.Form):
+    SORT_CHOICES = [
+        ('name', 'По названию (А-Я)'),
+        ('calories', 'По калориям (возр.)'),
+        ('-calories', 'По калориям (убыв.)'),
+        ('proteins', 'По белкам'),
+    ]
+
+    query = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': '🔍 Поиск продукта...',
+        }),
+        label='Поиск',
+    )
+    category = forms.ModelChoiceField(
+        queryset=FoodCategory.objects.all(),
+        required=False,
+        empty_label='Все категории',
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        label='Категория',
+    )
+    max_calories = forms.IntegerField(
+        required=False,
+        min_value=0,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Макс. калорий',
+        }),
+        label='Макс. калорий',
+    )
+    sort_by = forms.ChoiceField(
+        choices=[('', '-- Сортировка --')] + SORT_CHOICES,
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        label='Сортировка',
     )
 
-    grams = forms.FloatField(label='Граммы')
 
-    def clean_grams(self):
-        grams = self.cleaned_data['grams']
-        if grams <= 0:
-            raise forms.ValidationError('Количество граммов должно быть больше 0.')
-        return grams
-
-
-class ProfileForm(forms.ModelForm):
+class FoodItemForm(forms.ModelForm):
     class Meta:
-        model = Profile
-        fields = [
-            'gender',
-            'age',
-            'weight',
-            'height',
-            'activity_level',
-            'goal',
-            'daily_budget',
-        ]
-        labels = {
-            'gender': 'Пол',
-            'age': 'Возраст',
-            'weight': 'Вес',
-            'height': 'Рост',
-            'activity_level': 'Уровень активности',
-            'goal': 'Цель',
-            'daily_budget': 'Дневной бюджет',
+        model = FoodItem
+        fields = ['name', 'category', 'calories', 'proteins',
+                  'carbohydrates', 'fats', 'fiber', 'description', 'image']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'category': forms.Select(attrs={'class': 'form-select'}),
+            'calories': forms.NumberInput(attrs={
+                'class': 'form-control', 'step': '0.1', 'min': '0'
+            }),
+            'proteins': forms.NumberInput(attrs={
+                'class': 'form-control', 'step': '0.1', 'min': '0'
+            }),
+            'carbohydrates': forms.NumberInput(attrs={
+                'class': 'form-control', 'step': '0.1', 'min': '0'
+            }),
+            'fats': forms.NumberInput(attrs={
+                'class': 'form-control', 'step': '0.1', 'min': '0'
+            }),
+            'fiber': forms.NumberInput(attrs={
+                'class': 'form-control', 'step': '0.1', 'min': '0'
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control', 'rows': 3
+            }),
         }
-
-    def clean_age(self):
-        age = self.cleaned_data['age']
-        if age <= 0:
-            raise forms.ValidationError('Возраст должен быть больше 0.')
-        return age
-
-    def clean_weight(self):
-        weight = self.cleaned_data['weight']
-        if weight <= 0:
-            raise forms.ValidationError('Вес должен быть больше 0.')
-        return weight
-
-    def clean_height(self):
-        height = self.cleaned_data['height']
-        if height <= 0:
-            raise forms.ValidationError('Рост должен быть больше 0.')
-        return height
-
-    def clean_daily_budget(self):
-        daily_budget = self.cleaned_data['daily_budget']
-        if daily_budget < 0:
-            raise forms.ValidationError('Бюджет не может быть отрицательным.')
-        return daily_budget
-
-
-class RationForm(forms.ModelForm):
-    class Meta:
-        model = Ration
-        fields = ['date']
-        labels = {
-            'date': 'Дата рациона',
-        }
-
-    date = forms.DateField(
-        label='Дата рациона',
-        widget=forms.DateInput(attrs={'type': 'date'})
-    )
-
-class RegisterForm(forms.ModelForm):
-    password1 = forms.CharField(label='Пароль', widget=forms.PasswordInput)
-    password2 = forms.CharField(label='Повторите пароль', widget=forms.PasswordInput)
-
-    class Meta:
-        model = User
-        fields = ['username', 'email']
-        labels = {
-            'username': 'Логин',
-            'email': 'Email',
-        }
-
-    def clean_password2(self):
-        password1 = self.cleaned_data.get('password1')
-        password2 = self.cleaned_data.get('password2')
-
-        if password1 and password2 and password1 != password2:
-            raise forms.ValidationError('Пароли не совпадают.')
-        return password2
-
-    def save(self, commit=True):
-        user = super().save(commit=False)
-        user.set_password(self.cleaned_data['password1'])
-        if commit:
-            user.save()
-        return user

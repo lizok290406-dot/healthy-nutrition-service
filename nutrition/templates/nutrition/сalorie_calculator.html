@@ -1,0 +1,174 @@
+{% extends 'base.html' %}
+{% block title %}Калькулятор калорий — NutriTrack{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h1 class="section-title mb-2">🧮 Калькулятор калорий</h1>
+    <p class="text-muted mb-4">
+        Расчёт по формуле Миффлина — Сан Жеора
+    </p>
+
+    <div class="row g-4">
+
+        <!-- ФОРМА -->
+        <div class="col-md-5">
+            <div class="card p-4">
+                <h5 class="fw-700 mb-4">Введите параметры</h5>
+                <form method="post">
+                    {% csrf_token %}
+
+                    <div class="mb-3">
+                        <label class="form-label fw-600">Пол</label>
+                        <select name="gender" class="form-select">
+                            <option value="M">Мужской</option>
+                            <option value="F">Женский</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-600">Возраст (лет)</label>
+                        <input type="number" name="age" class="form-control"
+                               value="{{ profile.age|default:25 }}"
+                               min="10" max="120" placeholder="25">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-600">Вес (кг)</label>
+                        <input type="number" name="weight" class="form-control"
+                               value="{{ profile.weight|default:70 }}"
+                               step="0.1" min="20" max="300" placeholder="70">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-600">Рост (см)</label>
+                        <input type="number" name="height" class="form-control"
+                               value="{{ profile.height|default:170 }}"
+                               step="0.1" min="100" max="250" placeholder="170">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-600">Уровень активности</label>
+                        <select name="activity" class="form-select">
+                            <option value="sedentary">Сидячий (офис, без спорта)</option>
+                            <option value="light">Лёгкая (1-3 тренировки/нед)</option>
+                            <option value="moderate" selected>
+                                Умеренная (3-5 тренировок/нед)
+                            </option>
+                            <option value="active">Высокая (6-7 тренировок/нед)</option>
+                            <option value="very_active">Очень высокая (2 раза в день)</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-600">Ваша цель</label>
+                        <select name="goal" class="form-select">
+                            <option value="lose">Похудение (-500 ккал)</option>
+                            <option value="maintain" selected>Поддержание веса</option>
+                            <option value="gain">Набор массы (+500 ккал)</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100 py-2">
+                        <i class="bi bi-calculator me-2"></i>Рассчитать
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- РЕЗУЛЬТАТ -->
+        <div class="col-md-7">
+            {% if result %}
+            <div class="card p-4 mb-4"
+                 style="border: 2px solid rgba(102,126,234,0.3);">
+                <h5 class="fw-700 mb-4">📊 Результаты расчёта</h5>
+
+                <div class="row g-3 mb-4">
+                    <div class="col-6">
+                        <div class="card p-3 text-center"
+                             style="background:linear-gradient(135deg,#667eea,#764ba2);
+                             border-radius:16px; color:white;">
+                            <div style="font-size:1.5rem;">⚡</div>
+                            <div class="fw-800 fs-4">{{ result.bmr }}</div>
+                            <div class="small opacity-75">BMR (базовый обмен)</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="card p-3 text-center"
+                             style="background:linear-gradient(135deg,#f6d365,#fda085);
+                             border-radius:16px; color:white;">
+                            <div style="font-size:1.5rem;">🏃</div>
+                            <div class="fw-800 fs-4">{{ result.tdee }}</div>
+                            <div class="small opacity-75">TDEE (с активностью)</div>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="card p-4 text-center"
+                             style="background:linear-gradient(135deg,#56ab2f,#a8e063);
+                             border-radius:16px; color:white;">
+                            <div style="font-size:2rem;">🎯</div>
+                            <div class="fw-800" style="font-size:2.5rem;">
+                                {{ result.target }} ккал
+                            </div>
+                            <div class="opacity-75">Ваша цель в день</div>
+                        </div>
+                    </div>
+                </div>
+
+                <h6 class="fw-700 mb-3">Рекомендуемое распределение нутриентов:</h6>
+                <div class="row g-2">
+                    <div class="col-4">
+                        <div class="card p-3 text-center"
+                             style="border:2px solid rgba(102,126,234,0.3);
+                             border-radius:12px;">
+                            <div class="fw-800 fs-5" style="color:#667eea;">
+                                {{ result.proteins }}г
+                            </div>
+                            <div class="small text-muted">Белки (30%)</div>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="card p-3 text-center"
+                             style="border:2px solid rgba(246,211,101,0.5);
+                             border-radius:12px;">
+                            <div class="fw-800 fs-5" style="color:#c48c00;">
+                                {{ result.carbs }}г
+                            </div>
+                            <div class="small text-muted">Углеводы (45%)</div>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="card p-3 text-center"
+                             style="border:2px solid rgba(240,147,251,0.3);
+                             border-radius:12px;">
+                            <div class="fw-800 fs-5" style="color:#9b44b0;">
+                                {{ result.fats }}г
+                            </div>
+                            <div class="small text-muted">Жиры (25%)</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="alert alert-info mt-4 mb-0">
+                    <i class="bi bi-info-circle me-2"></i>
+                    <strong>Совет:</strong> Эти значения являются ориентировочными.
+                    Для точного расчёта обратитесь к диетологу.
+                </div>
+            </div>
+
+            {% else %}
+            <div class="card p-5 text-center"
+                 style="min-height: 400px; display:flex; flex-direction:column;
+                 align-items:center; justify-content:center;">
+                <div style="font-size:5rem;">🧮</div>
+                <h4 class="fw-700 mt-3 mb-2">Узнайте свою норму калорий</h4>
+                <p class="text-muted mb-0">
+                    Заполните форму слева и нажмите «Рассчитать».<br>
+                    Расчёт ведётся по научной формуле Миффлина — Сан Жеора.
+                </p>
+            </div>
+            {% endif %}
+        </div>
+
+    </div>
+</div>
+{% endblock %}

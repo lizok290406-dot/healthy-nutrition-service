@@ -1,0 +1,81 @@
+{% extends 'nutrition/base.html' %}
+
+{% block title %}Профиль пользователя{% endblock %}
+
+{% block content %}
+<h2>Профиль пользователя {{ user_obj.username }}</h2>
+
+<div class="form-card" style="max-width: 520px;">
+    <form method="post">
+        {% csrf_token %}
+
+        <p>
+            <label for="{{ form.gender.id_for_label }}">Пол</label>
+            {{ form.gender }}
+            {% if form.gender.errors %}
+                <span class="bad">{{ form.gender.errors.0 }}</span>
+            {% endif %}
+        </p>
+
+        <p>
+            <label for="{{ form.age.id_for_label }}">Возраст</label>
+            {{ form.age }}
+            {% if form.age.errors %}
+                <span class="bad">{{ form.age.errors.0 }}</span>
+            {% endif %}
+        </p>
+
+        <p>
+            <label for="{{ form.weight.id_for_label }}">Вес</label>
+            {{ form.weight }}
+            {% if form.weight.errors %}
+                <span class="bad">{{ form.weight.errors.0 }}</span>
+            {% endif %}
+        </p>
+
+        <p>
+            <label for="{{ form.height.id_for_label }}">Рост</label>
+            {{ form.height }}
+            {% if form.height.errors %}
+                <span class="bad">{{ form.height.errors.0 }}</span>
+            {% endif %}
+        </p>
+
+        <p>
+            <label for="{{ form.activity_level.id_for_label }}">Уровень активности</label>
+            {{ form.activity_level }}
+            {% if form.activity_level.errors %}
+                <span class="bad">{{ form.activity_level.errors.0 }}</span>
+            {% endif %}
+        </p>
+
+        <p>
+            <label for="{{ form.goal.id_for_label }}">Цель</label>
+            {{ form.goal }}
+            {% if form.goal.errors %}
+                <span class="bad">{{ form.goal.errors.0 }}</span>
+            {% endif %}
+        </p>
+
+        <p>
+            <label for="{{ form.daily_budget.id_for_label }}">Дневной бюджет</label>
+            {{ form.daily_budget }}
+            {% if form.daily_budget.errors %}
+                <span class="bad">{{ form.daily_budget.errors.0 }}</span>
+            {% endif %}
+        </p>
+
+        <button type="submit" class="main-btn">Сохранить</button>
+    </form>
+</div>
+
+<div class="summary">
+    <h3>Текущие расчётные показатели</h3>
+    <ul>
+        <li>Норма калорий: {{ profile.get_daily_calories|floatformat:2 }}</li>
+        <li>Норма белков: {{ profile.get_target_proteins|floatformat:2 }} г</li>
+        <li>Норма жиров: {{ profile.get_target_fats|floatformat:2 }} г</li>
+        <li>Норма углеводов: {{ profile.get_target_carbs|floatformat:2 }} г</li>
+    </ul>
+</div>
+{% endblock %}

@@ -1,16 +1,18 @@
 from django.urls import path
 from . import views
 
+app_name = 'nutrition'
+
 urlpatterns = [
     path('', views.home, name='home'),
-    path('products/', views.product_list, name='product_list'),
-
-    path('register/', views.register_view, name='register'),
-
-    path('profile/', views.profile_detail, name='profile_detail'),
-    path('ration/', views.ration_detail, name='ration_detail'),
-    path('analysis/', views.ration_analysis, name='ration_analysis'),
     path('dashboard/', views.dashboard, name='dashboard'),
-
-    path('ration-item/delete/<int:item_id>/', views.delete_ration_item, name='delete_ration_item'),
+    path('catalog/', views.food_catalog, name='food_catalog'),
+    path('food/add/', views.add_food_item, name='add_food_item'),
+    path('food/<int:pk>/', views.food_detail, name='food_detail'),
+    path('meal/add/', views.add_meal, name='add_meal'),
+    path('meal/delete/<int:pk>/', views.delete_meal, name='delete_meal'),
+    path('weight/log/', views.log_weight, name='log_weight'),
+    path('progress/', views.progress, name='progress'),
+    path('calculator/', views.calorie_calculator, name='calorie_calculator'),
+    path('api/search-food/', views.search_food_api, name='search_food_api'),
 ]

@@ -1,22 +1,35 @@
-# Python compilation
-__pycache__/
-*.py[cod]
-*$py.class
-
-# Django specific
-*.log
-local_settings.py
-db.sqlite3
-db.sqlite3-journal
-
-# Virtual Environment
+# ===== ВИРТУАЛЬНОЕ ОКРУЖЕНИЕ (обязательно!) =====
 venv/
 env/
 .venv/
-.env
+ENV/
 
-# IDE specific
+# ===== БАЗА ДАННЫХ =====
+db.sqlite3
+db.sqlite3-journal
+
+# ===== СЕКРЕТНЫЕ ФАЙЛЫ =====
+.env
+local_settings.py
+*.key
+
+# ===== PYTHON МУСОР =====
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+*.pyo
+
+# ===== DJANGO =====
+*.log
+/static/
+/staticfiles/
+/media/
+
+# ===== РЕДАКТОРЫ =====
 .idea/
 .vscode/
 *.swp
+*.swo
 .DS_Store
+Thumbs.db

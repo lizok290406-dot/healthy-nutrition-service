@@ -1,77 +1,42 @@
 from django.contrib import admin
-from .models import Profile, Category, Product, Ration, RationItem
+from .models import FoodCategory, FoodItem, MealLog, WeightLog, UserProfile
 
 
-@admin.register(Profile)
-class ProfileAdmin(admin.ModelAdmin):
-    list_display = (
-        'user',
-        'gender',
-        'age',
-        'weight',
-        'height',
-        'activity_level',
-        'goal',
-        'daily_budget',
-    )
-    search_fields = ('user__username',)
-    list_filter = ('gender', 'activity_level', 'goal')
+@admin.register(FoodCategory)
+class FoodCategoryAdmin(admin.ModelAdmin):
+    list_display = ['name', 'icon', 'color']
+    search_fields = ['name']
 
 
-@admin.register(Category)
-class CategoryAdmin(admin.ModelAdmin):
-    list_display = ('name',)
-    search_fields = ('name',)
+@admin.register(FoodItem)
+class FoodItemAdmin(admin.ModelAdmin):
+    list_display = ['name', 'category', 'calories', 'proteins',
+                    'carbohydrates', 'fats', 'is_api_data']
+    list_filter = ['category', 'is_api_data']
+    search_fields = ['name', 'description']
+    list_editable = ['calories']
+    ordering = ['name']
 
 
-@admin.register(Product)
-class ProductAdmin(admin.ModelAdmin):
-    list_display = (
-        'name',
-        'category',
-        'calories_per_100g',
-        'proteins_per_100g',
-        'fats_per_100g',
-        'carbs_per_100g',
-        'price_per_100g',
-    )
-    search_fields = ('name', 'category__name')
-    list_filter = ('category',)
-    ordering = ('name',)
+@admin.register(MealLog)
+class MealLogAdmin(admin.ModelAdmin):
+    list_display = ['user', 'food_item', 'meal_type', 'amount', 'date']
+    list_filter = ['meal_type', 'date', 'user']
+    search_fields = ['user__username', 'food_item__name']
+    date_hierarchy = 'date'
 
 
-@admin.register(Ration)
-class RationAdmin(admin.ModelAdmin):
-    list_display = (
-        'user',
-        'date',
-        'total_calories',
-        'total_price',
-        'calorie_status',
-        'is_within_budget',
-    )
-    search_fields = ('user__username',)
-    list_filter = ('date', 'user')
-
-    def total_calories(self, obj):
-        return round(obj.total_calories(), 2)
-    total_calories.short_description = 'Калории'
-
-    def total_price(self, obj):
-        return round(obj.total_price(), 2)
-    total_price.short_description = 'Стоимость'
-
-    def calorie_status(self, obj):
-        return obj.calorie_status()
-    calorie_status.short_description = 'Статус'
-
-    def is_within_budget(self, obj):
-        return 'Да' if obj.is_within_budget() else 'Нет'
-    is_within_budget.short_description = 'В бюджете'
+@admin.register(WeightLog)
+class WeightLogAdmin(admin.ModelAdmin):
+    list_display = ['user', 'weight', 'date']
+    list_filter = ['user']
+    search_fields = ['user__username']
+    date_hierarchy = 'date'
 
 
-@admin.register(RationItem)
-class RationItemAdmin(admin.ModelAdmin):
-    list_display = ('ration', 'product', 'grams')
-    search_fields = ('product__name', 'ration__user__username')
-    list_filter = ('product__category', 'ration__date')
+@admin.register(UserProfile)
+class UserProfileAdmin(admin.ModelAdmin):
+    list_display = ['user', 'age', 'gender', 'weight', 'height',
+                    'activity_level', 'goal']
+    list_filter = ['gender', 'activity_level', 'goal']
+    search_fields = ['user__username', 'user__email']

@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}NutriTrack{% endblock %}</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+
+    <style>
+        :root {
+            --primary: #667eea;
+            --primary-dark: #764ba2;
+            --bg-light: #f8f9ff;
+            --card-shadow: 0 4px 24px rgba(102,126,234,0.12);
+            --card-shadow-hover: 0 8px 32px rgba(102,126,234,0.22);
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-light);
+            color: #2d3436;
+            min-height: 100vh;
+        }
+
+        /* NAVBAR */
+        .navbar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            box-shadow: 0 2px 20px rgba(102,126,234,0.3);
+            padding: 12px 0;
+        }
+
+        .navbar-brand {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: white !important;
+        }
+
+        .navbar-brand span {
+            background: linear-gradient(90deg, #ffecd2, #fcb69f);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .navbar-nav .nav-link {
+            color: rgba(255,255,255,0.85) !important;
+            font-weight: 500;
+            font-size: 0.9rem;
+            padding: 8px 14px !important;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+
+        .navbar-nav .nav-link:hover,
+        .navbar-nav .nav-link.active {
+            color: white !important;
+            background: rgba(255,255,255,0.15);
+        }
+
+        .btn-nav-outline {
+            background: rgba(255,255,255,0.15);
+            color: white !important;
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 20px;
+            padding: 6px 18px !important;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .btn-nav-outline:hover {
+            background: white;
+            color: var(--primary) !important;
+        }
+
+        /* CARDS */
+        .card {
+            border: none;
+            border-radius: 16px;
+            box-shadow: var(--card-shadow);
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--card-shadow-hover);
+        }
+
+        /* STAT CARDS — одинаковая высота и выравнивание */
+        .stat-card {
+            text-align: center;
+            padding: 28px 16px;
+            min-height: 160px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            border-radius: 16px;
+            color: white;
+        }
+
+        .stat-card .stat-icon {
+            font-size: 2.2rem;
+            margin-bottom: 10px;
+            display: block;
+            line-height: 1;
+        }
+
+        .stat-card .stat-value {
+            font-size: 1.9rem;
+            font-weight: 800;
+            line-height: 1;
+            margin-bottom: 6px;
+        }
+
+        .stat-card .stat-label {
+            font-size: 0.82rem;
+            opacity: 0.88;
+            font-weight: 500;
+        }
+
+        /* GRADIENT CARDS */
+        .card-gradient-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .card-gradient-warm {
+            background: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
+        }
+        .card-gradient-pink {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        .card-gradient-green {
+            background: linear-gradient(135deg, #56ab2f 0%, #a8e063 100%);
+        }
+        .card-gradient-blue {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+
+        /* BUTTONS */
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            padding: 10px 24px;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(102,126,234,0.35);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(102,126,234,0.45);
+        }
+
+        .btn-outline-primary {
+            border-color: #667eea;
+            color: #667eea;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+
+        .btn-outline-primary:hover {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-color: transparent;
+        }
+
+        .btn-outline-secondary {
+            border-radius: 10px;
+            font-weight: 600;
+        }
+
+        .btn-outline-danger {
+            border-radius: 8px;
+        }
+
+        /* PROGRESS */
+        .progress {
+            height: 10px;
+            border-radius: 10px;
+            background: rgba(0,0,0,0.06);
+        }
+
+        .progress-bar {
+            border-radius: 10px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+        }
+
+        /* FORMS */
+        .form-control, .form-select {
+            border-radius: 10px;
+            border: 1.5px solid #e9ecef;
+            padding: 10px 14px;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .form-control:focus, .form-select:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102,126,234,0.15);
+        }
+
+        /* TABLE */
+        .table thead th {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            font-weight: 600;
+            font-size: 0.85rem;
+            border: none;
+            padding: 14px 16px;
+        }
+
+        .table tbody tr:hover {
+            background: rgba(102,126,234,0.05);
+        }
+
+        /* BADGES */
+        .badge-calories-low {
+            background: linear-gradient(135deg, #56ab2f, #a8e063);
+            color: white;
+        }
+        .badge-calories-medium {
+            background: linear-gradient(135deg, #f6d365, #fda085);
+            color: white;
+        }
+        .badge-calories-high {
+            background: linear-gradient(135deg, #f093fb, #f5576c);
+            color: white;
+        }
+
+        /* NUTRIENT PILLS */
+        .nutrient-pill {
+            display: inline-flex;
+            align-items: center;
+            font-size: 0.72rem;
+            font-weight: 600;
+            padding: 3px 8px;
+            border-radius: 20px;
+        }
+        .pill-protein { background: rgba(102,126,234,0.12); color: #667eea; }
+        .pill-carbs { background: rgba(246,211,101,0.3); color: #c48c00; }
+        .pill-fat { background: rgba(240,147,251,0.18); color: #9b44b0; }
+
+        /* MEAL BADGES */
+        .meal-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.78rem;
+            font-weight: 600;
+        }
+        .meal-breakfast { background: rgba(246,211,101,0.2); color: #c48c00; }
+        .meal-lunch { background: rgba(86,171,47,0.15); color: #3d7a22; }
+        .meal-dinner { background: rgba(102,126,234,0.15); color: #667eea; }
+        .meal-snack { background: rgba(240,147,251,0.15); color: #9b44b0; }
+
+        /* SECTION TITLE */
+        .section-title {
+            font-size: 1.8rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* ALERTS */
+        .alert {
+            border: none;
+            border-radius: 12px;
+            font-weight: 500;
+        }
+        .alert-success {
+            background: rgba(86,171,47,0.1);
+            color: #2d6a1a;
+            border-left: 4px solid #56ab2f;
+        }
+        .alert-info {
+            background: rgba(102,126,234,0.1);
+            color: #764ba2;
+            border-left: 4px solid #667eea;
+        }
+        .alert-danger {
+            background: rgba(245,87,108,0.1);
+            color: #c0392b;
+            border-left: 4px solid #f5576c;
+        }
+
+        /* FOOD CARD */
+        .food-card { cursor: pointer; overflow: hidden; }
+
+        /* SEARCH */
+        .search-box { position: relative; }
+        .search-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+            z-index: 1000;
+            max-height: 280px;
+            overflow-y: auto;
+            display: none;
+        }
+        .search-results.show { display: block; }
+        .search-result-item {
+            padding: 10px 16px;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.15s;
+            font-size: 0.9rem;
+        }
+        .search-result-item:hover { background: #f8f9ff; }
+        .search-result-item:last-child { border-bottom: none; }
+
+        /* FOOTER */
+        footer {
+            background: linear-gradient(135deg, #2d3436, #1a1a2e);
+            color: rgba(255,255,255,0.7);
+            padding: 40px 0 20px;
+            margin-top: 80px;
+        }
+
+        /* ANIMATIONS */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in { animation: fadeInUp 0.5s ease forwards; }
+
+        /* RESPONSIVE */
+        @media (max-width: 768px) {
+            .stat-card .stat-value { font-size: 1.5rem; }
+            .section-title { font-size: 1.4rem; }
+            .stat-card { min-height: 130px; padding: 20px 12px; }
+        }
+    </style>
+
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav class="navbar navbar-expand-lg sticky-top">
+    <div class="container">
+        <a class="navbar-brand" href="{% url 'nutrition:home' %}">
+            🥗 Nutri<span>Track</span>
+        </a>
+
+        <button class="navbar-toggler border-0" type="button"
+                data-bs-toggle="collapse" data-bs-target="#navMenu">
+            <i class="bi bi-list text-white fs-4"></i>
+        </button>
+
+        <div class="collapse navbar-collapse" id="navMenu">
+            <ul class="navbar-nav me-auto ms-3 gap-1">
+                <li class="nav-item">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'home' %}active{% endif %}"
+                       href="{% url 'nutrition:home' %}">
+                        <i class="bi bi-house me-1"></i>Главная
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'food_catalog' %}active{% endif %}"
+                       href="{% url 'nutrition:food_catalog' %}">
+                        <i class="bi bi-grid me-1"></i>Каталог
+                    </a>
+                </li>
+                {% if user.is_authenticated %}
+                <li class="nav-item">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}"
+                       href="{% url 'nutrition:dashboard' %}">
+                        <i class="bi bi-journal-text me-1"></i>Дневник
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'progress' %}active{% endif %}"
+                       href="{% url 'nutrition:progress' %}">
+                        <i class="bi bi-graph-up me-1"></i>Прогресс
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'calorie_calculator' %}active{% endif %}"
+                       href="{% url 'nutrition:calorie_calculator' %}">
+                        <i class="bi bi-calculator me-1"></i>Калькулятор
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+
+            <ul class="navbar-nav gap-2 align-items-center">
+                {% if user.is_authenticated %}
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'nutrition:add_meal' %}">
+                        <i class="bi bi-plus-circle me-1"></i>Добавить
+                    </a>
+                </li>
+                <li class="nav-item dropdown">
+                    <a class="nav-link btn-nav-outline dropdown-toggle"
+                       href="#" data-bs-toggle="dropdown">
+                        <i class="bi bi-person-circle me-1"></i>
+                        {{ user.username }}
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-3">
+                        <li>
+                            <a class="dropdown-item" href="{% url 'users:profile' %}">
+                                <i class="bi bi-person me-2"></i>Профиль
+                            </a>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <form method="post" action="{% url 'users:logout' %}">
+                                {% csrf_token %}
+                                <button type="submit"
+                                        class="dropdown-item text-danger">
+                                    <i class="bi bi-box-arrow-right me-2"></i>
+                                    Выйти
+                                </button>
+                            </form>
+                        </li>
+                    </ul>
+                </li>
+                {% else %}
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'users:login' %}">
+                        Войти
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link btn-nav-outline"
+                       href="{% url 'users:register' %}">
+                        Регистрация
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<!-- MESSAGES -->
+{% if messages %}
+<div class="container mt-3">
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+        {{ message }}
+        <button type="button" class="btn-close"
+                data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- MAIN -->
+<main>
+    {% block content %}{% endblock %}
+</main>
+
+<!-- FOOTER -->
+<footer>
+    <div class="container">
+        <div class="row g-4">
+            <div class="col-md-4">
+                <div class="fw-800 text-white mb-2" style="font-size:1.2rem;">
+                    🥗 NutriTrack
+                </div>
+                <p class="small mb-0">
+                    Умный сервис для отслеживания питания
+                    и достижения ваших целей по здоровью.
+                </p>
+            </div>
+            <div class="col-md-4">
+                <h6 class="text-white fw-700 mb-3">Навигация</h6>
+                <ul class="list-unstyled small">
+                    <li class="mb-1">
+                        <a href="{% url 'nutrition:home' %}"
+                           class="text-white-50 text-decoration-none">
+                            Главная
+                        </a>
+                    </li>
+                    <li class="mb-1">
+                        <a href="{% url 'nutrition:food_catalog' %}"
+                           class="text-white-50 text-decoration-none">
+                            Каталог продуктов
+                        </a>
+                    </li>
+                    <li class="mb-1">
+                        <a href="{% url 'nutrition:calorie_calculator' %}"
+                           class="text-white-50 text-decoration-none">
+                            Калькулятор калорий
+                        </a>
+                    </li>
+                </ul>
+            </div>
+            <div class="col-md-4">
+                <h6 class="text-white fw-700 mb-3">Технологии</h6>
+                <div class="d-flex flex-wrap gap-2">
+                    <span class="badge bg-secondary">Python 3.10</span>
+                    <span class="badge bg-secondary">Django 4.2</span>
+                    <span class="badge bg-secondary">Plotly</span>
+                    <span class="badge bg-secondary">Pandas</span>
+                    <span class="badge bg-secondary">Bootstrap 5</span>
+                </div>
+            </div>
+        </div>
+        <hr class="border-secondary mt-4">
+        <p class="text-center small mb-0"
+           style="color:rgba(255,255,255,0.35);">
+            © 2025 NutriTrack. Учебный проект.
+        </p>
+    </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

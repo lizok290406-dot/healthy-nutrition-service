@@ -1,308 +1,455 @@
+import json
+from datetime import date, timedelta
+
 import pandas as pd
-import plotly.express as px
-
+import plotly.graph_objects as go
+import requests
+from django.conf import settings
 from django.contrib import messages
-from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
+from django.db.models import Avg, Count, F, Q, Sum
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from plotly.utils import PlotlyJSONEncoder
 
-from .forms import ProfileForm, RationForm, RationItemForm, RegisterForm
-from .models import Category, Product, Profile, Ration, RationItem
+from .forms import FoodItemForm, FoodSearchForm, MealLogForm, WeightLogForm
+from .models import FoodCategory, FoodItem, MealLog, UserProfile, WeightLog
 
 
 def home(request):
-    return render(request, 'nutrition/home.html')
+    categories = FoodCategory.objects.annotate(
+        items_count=Count('food_items')
+    ).order_by('-items_count')[:6]
 
+    top_foods = FoodItem.objects.select_related('category').order_by('calories')[:8]
 
-def register_view(request):
-    if request.user.is_authenticated:
-        return redirect('profile_detail')
-
-    if request.method == 'POST':
-        form = RegisterForm(request.POST)
-        if form.is_valid():
-            user = form.save()
-
-            Profile.objects.get_or_create(
-                user=user,
-                defaults={
-                    'gender': 'female',
-                    'age': 18,
-                    'weight': 60,
-                    'height': 170,
-                    'activity_level': 'medium',
-                    'goal': 'maintain',
-                    'daily_budget': 300,
-                }
-            )
-
-            login(request, user)
-            messages.success(request, 'Регистрация прошла успешно. Заполните профиль.')
-            return redirect('profile_detail')
-    else:
-        form = RegisterForm()
-
-    return render(request, 'nutrition/register.html', {'form': form})
-
-
-@login_required
-def profile_detail(request):
-    user = request.user
-    profile, _ = Profile.objects.get_or_create(
-        user=user,
-        defaults={
-            'gender': 'female',
-            'age': 18,
-            'weight': 60,
-            'height': 170,
-            'activity_level': 'medium',
-            'goal': 'maintain',
-            'daily_budget': 300,
-        }
-    )
-
-    if request.method == 'POST':
-        form = ProfileForm(request.POST, instance=profile)
-        if form.is_valid():
-            form.save()
-            messages.success(request, 'Профиль успешно сохранён.')
-            return redirect('profile_detail')
-    else:
-        form = ProfileForm(instance=profile)
-
-    context = {
-        'user_obj': user,
-        'profile': profile,
-        'form': form,
+    stats = {
+        'total_foods': FoodItem.objects.count(),
+        'total_categories': FoodCategory.objects.count(),
+        'total_users': UserProfile.objects.count(),
     }
-    return render(request, 'nutrition/profile.html', context)
-
-
-def product_list(request):
-    products = Product.objects.all()
-    categories = Category.objects.all()
-
-    search_query = request.GET.get('q', '').strip()
-    selected_category = request.GET.get('category', '')
-    sort_by = request.GET.get('sort', '')
-
-    if selected_category:
-        products = products.filter(category_id=selected_category)
-
-    if search_query:
-        products = [
-            product for product in products
-            if search_query.casefold() in product.name.casefold()
-        ]
-
-    if sort_by:
-        if isinstance(products, list):
-            if sort_by == 'calories':
-                products = sorted(products, key=lambda x: x.calories_per_100g)
-            elif sort_by == 'price':
-                products = sorted(products, key=lambda x: x.price_per_100g)
-            elif sort_by == 'proteins':
-                products = sorted(
-                    products,
-                    key=lambda x: x.proteins_per_100g,
-                    reverse=True
-                )
-        else:
-            if sort_by == 'calories':
-                products = products.order_by('calories_per_100g')
-            elif sort_by == 'price':
-                products = products.order_by('price_per_100g')
-            elif sort_by == 'proteins':
-                products = products.order_by('-proteins_per_100g')
 
     context = {
-        'products': products,
         'categories': categories,
-        'search_query': search_query,
-        'selected_category': selected_category,
-        'sort_by': sort_by,
+        'top_foods': top_foods,
+        'stats': stats,
     }
-    return render(request, 'nutrition/product_list.html', context)
-
-
-@login_required
-def ration_detail(request):
-    user = request.user
-    profile, _ = Profile.objects.get_or_create(
-        user=user,
-        defaults={
-            'gender': 'female',
-            'age': 18,
-            'weight': 60,
-            'height': 170,
-            'activity_level': 'medium',
-            'goal': 'maintain',
-            'daily_budget': 300,
-        }
-    )
-
-    selected_date = request.GET.get('date')
-    available_rations = Ration.objects.filter(user=user).order_by('-date')
-
-    if selected_date:
-        ration = Ration.objects.filter(user=user, date=selected_date).first()
-    else:
-        ration = available_rations.first()
-
-    if request.method == 'POST':
-        if 'create_ration' in request.POST:
-            ration_form = RationForm(request.POST)
-            item_form = RationItemForm()
-
-            if ration_form.is_valid():
-                new_date = ration_form.cleaned_data['date']
-                existing_ration = Ration.objects.filter(
-                    user=user,
-                    date=new_date
-                ).first()
-
-                if not existing_ration:
-                    Ration.objects.create(user=user, date=new_date)
-                    messages.success(request, 'Рацион успешно создан.')
-                else:
-                    messages.info(request, 'Рацион на эту дату уже существует.')
-
-                return redirect(f'/ration/?date={new_date}')
-
-        elif 'add_item' in request.POST:
-            item_form = RationItemForm(request.POST)
-            ration_form = RationForm()
-
-            if item_form.is_valid() and ration:
-                ration_item = item_form.save(commit=False)
-                ration_item.ration = ration
-                ration_item.save()
-                messages.success(request, 'Продукт добавлен в рацион.')
-
-                if selected_date:
-                    return redirect(f'/ration/?date={selected_date}')
-                return redirect('ration_detail')
-    else:
-        item_form = RationItemForm()
-        ration_form = RationForm()
-
-    context = {
-        'user_obj': user,
-        'profile': profile,
-        'ration': ration,
-        'form': item_form,
-        'ration_form': ration_form,
-        'available_rations': available_rations,
-        'selected_date': selected_date,
-    }
-    return render(request, 'nutrition/ration_detail.html', context)
-
-
-@login_required
-def ration_analysis(request):
-    user = request.user
-    profile, _ = Profile.objects.get_or_create(
-        user=user,
-        defaults={
-            'gender': 'female',
-            'age': 18,
-            'weight': 60,
-            'height': 170,
-            'activity_level': 'medium',
-            'goal': 'maintain',
-            'daily_budget': 300,
-        }
-    )
-
-    selected_date = request.GET.get('date')
-    available_rations = Ration.objects.filter(user=user).order_by('-date')
-
-    if selected_date:
-        ration = Ration.objects.filter(user=user, date=selected_date).first()
-    else:
-        ration = available_rations.first()
-
-    context = {
-        'user_obj': user,
-        'profile': profile,
-        'ration': ration,
-        'available_rations': available_rations,
-        'selected_date': selected_date,
-    }
-    return render(request, 'nutrition/ration_analysis.html', context)
+    return render(request, 'nutrition/home.html', context)
 
 
 @login_required
 def dashboard(request):
-    user = request.user
-    rations = Ration.objects.filter(user=user).order_by('date')
+    today = date.today()
+    profile, _ = UserProfile.objects.get_or_create(user=request.user)
 
-    data = []
-    for ration in rations:
-        data.append({
-            'date': ration.date,
-            'calories': ration.total_calories(),
-            'price': ration.total_price(),
-            'proteins': ration.total_proteins(),
-            'fats': ration.total_fats(),
-            'carbs': ration.total_carbs(),
-        })
+    today_logs = MealLog.objects.filter(
+        user=request.user,
+        date=today
+    ).select_related('food_item', 'food_item__category')
 
-    chart_html = None
-    price_chart_html = None
-    table_data = []
+    daily_totals = today_logs.aggregate(
+        total_calories=Sum(F('food_item__calories') * F('amount') / 100),
+        total_proteins=Sum(F('food_item__proteins') * F('amount') / 100),
+        total_carbohydrates=Sum(F('food_item__carbohydrates') * F('amount') / 100),
+        total_fats=Sum(F('food_item__fats') * F('amount') / 100),
+    )
 
-    if data:
-        df = pd.DataFrame(data)
-        table_data = df.to_dict(orient='records')
+    tdee = profile.calculate_tdee()
+    bmi = profile.calculate_bmi()
+    bmi_category = profile.get_bmi_category()
 
-        fig_calories = px.line(
-            df,
-            x='date',
-            y='calories',
-            markers=True,
-            title='Калорийность рациона по датам'
-        )
-        fig_calories.update_layout(
-            xaxis_title='Дата',
-            yaxis_title='Калории',
-            template='plotly_white'
-        )
-        chart_html = fig_calories.to_html(full_html=False)
+    calories_consumed = round(daily_totals['total_calories'] or 0, 1)
+    calories_progress = 0
+    if tdee and tdee > 0:
+        calories_progress = min(round((calories_consumed / tdee) * 100), 100)
 
-        fig_price = px.bar(
-            df,
-            x='date',
-            y='price',
-            title='Стоимость рациона по датам'
-        )
-        fig_price.update_layout(
-            xaxis_title='Дата',
-            yaxis_title='Стоимость',
-            template='plotly_white'
-        )
-        price_chart_html = fig_price.to_html(full_html=False)
+    calories_chart = _get_weekly_calories_chart(request.user)
 
     context = {
-        'user_obj': user,
-        'chart_html': chart_html,
-        'price_chart_html': price_chart_html,
-        'table_data': table_data,
+        'profile': profile,
+        'today_logs': today_logs,
+        'daily_totals': daily_totals,
+        'tdee': tdee,
+        'bmi': bmi,
+        'bmi_category': bmi_category,
+        'calories_consumed': calories_consumed,
+        'calories_progress': calories_progress,
+        'calories_chart': calories_chart,
+        'today': today,
+        'macros_chart': None,  # график пока убираем, чтобы ничего не ехало
     }
     return render(request, 'nutrition/dashboard.html', context)
 
 
-@login_required
-def delete_ration_item(request, item_id):
-    item = get_object_or_404(
-        RationItem,
-        id=item_id,
-        ration__user=request.user
+def _get_weekly_calories_chart(user):
+    today = date.today()
+    dates = [(today - timedelta(days=i)) for i in range(6, -1, -1)]
+
+    calories_data = []
+    for d in dates:
+        total = MealLog.objects.filter(
+            user=user,
+            date=d
+        ).aggregate(
+            total=Sum(F('food_item__calories') * F('amount') / 100)
+        )['total'] or 0
+        calories_data.append(round(total, 1))
+
+    date_labels = [d.strftime('%d.%m') for d in dates]
+
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        x=date_labels,
+        y=calories_data,
+        marker=dict(color='rgba(102,126,234,0.8)'),
+        text=calories_data,
+        textposition='outside',
+        name='Калории',
+    ))
+
+    fig.update_layout(
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+        font=dict(color='#6c757d', size=12),
+        margin=dict(l=20, r=20, t=20, b=20),
+        xaxis=dict(gridcolor='rgba(0,0,0,0.05)'),
+        yaxis=dict(gridcolor='rgba(0,0,0,0.05)'),
+        height=250,
+        showlegend=False,
     )
-    ration_date = item.ration.date
+
+    return json.dumps(fig, cls=PlotlyJSONEncoder)
+
+
+@login_required
+def add_meal(request):
+    if request.method == 'POST':
+        form = MealLogForm(request.POST)
+        if form.is_valid():
+            meal_log = form.save(commit=False)
+            meal_log.user = request.user
+            meal_log.save()
+            messages.success(request, f'Продукт «{meal_log.food_item.name}» добавлен в дневник!')
+            return redirect('nutrition:dashboard')
+    else:
+        form = MealLogForm()
+
+    return render(request, 'nutrition/add_meal.html', {'form': form})
+
+
+@login_required
+def delete_meal(request, pk):
+    meal_log = get_object_or_404(MealLog, pk=pk, user=request.user)
+    if request.method == 'POST':
+        food_name = meal_log.food_item.name
+        meal_log.delete()
+        messages.success(request, f'Запись о «{food_name}» удалена.')
+    return redirect('nutrition:dashboard')
+
+
+@login_required
+def log_weight(request):
+    if request.method == 'POST':
+        form = WeightLogForm(request.POST)
+        if form.is_valid():
+            weight_log = form.save(commit=False)
+            weight_log.user = request.user
+
+            profile, _ = UserProfile.objects.get_or_create(user=request.user)
+            profile.weight = weight_log.weight
+            profile.save()
+
+            WeightLog.objects.update_or_create(
+                user=request.user,
+                date=weight_log.date,
+                defaults={
+                    'weight': weight_log.weight,
+                    'notes': weight_log.notes
+                }
+            )
+            messages.success(request, f'Вес {weight_log.weight} кг сохранён!')
+            return redirect('nutrition:progress')
+    else:
+        form = WeightLogForm()
+
+    return render(request, 'nutrition/log_weight.html', {'form': form})
+
+
+@login_required
+def progress(request):
+    weight_logs = WeightLog.objects.filter(
+        user=request.user
+    ).order_by('date').values('date', 'weight', 'notes')
+
+    weight_chart = None
+    if weight_logs.exists():
+        df = pd.DataFrame(list(weight_logs))
+        df['date_str'] = pd.to_datetime(df['date']).dt.strftime('%d.%m.%Y')
+
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=df['date_str'],
+            y=df['weight'],
+            mode='lines+markers',
+            line=dict(color='#667eea', width=3),
+            marker=dict(size=8, color='#764ba2'),
+            name='Вес',
+        ))
+
+        fig.update_layout(
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)',
+            font=dict(color='#6c757d', size=12),
+            margin=dict(l=20, r=20, t=30, b=20),
+            xaxis=dict(
+                gridcolor='rgba(0,0,0,0.05)',
+                title='Дата',
+                type='category',
+            ),
+            yaxis=dict(
+                gridcolor='rgba(0,0,0,0.05)',
+                title='Вес (кг)',
+            ),
+            height=350,
+            showlegend=False,
+        )
+        weight_chart = json.dumps(fig, cls=PlotlyJSONEncoder)
+
+    thirty_days_ago = date.today() - timedelta(days=30)
+    meal_data = MealLog.objects.filter(
+        user=request.user,
+        date__gte=thirty_days_ago
+    ).values('date', 'food_item__calories', 'amount')
+
+    analytics = {}
+    weekly_chart = None
+
+    if meal_data.exists():
+        df = pd.DataFrame(list(meal_data))
+        df['total_cal'] = df['food_item__calories'] * df['amount'] / 100
+        daily = df.groupby('date')['total_cal'].sum()
+
+        analytics = {
+            'avg_calories': round(daily.mean(), 1),
+            'max_calories': round(daily.max(), 1),
+            'min_calories': round(daily.min(), 1),
+            'days_tracked': len(daily),
+        }
+
+        date_labels = [
+            d.strftime('%d.%m') if hasattr(d, 'strftime') else str(d)
+            for d in daily.index
+        ]
+
+        fig2 = go.Figure()
+        fig2.add_trace(go.Scatter(
+            x=date_labels,
+            y=daily.values.tolist(),
+            mode='lines+markers',
+            line=dict(color='#f6d365', width=2),
+            marker=dict(size=5, color='#fda085'),
+            fill='tozeroy',
+            fillcolor='rgba(246,211,101,0.15)',
+        ))
+
+        fig2.update_layout(
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)',
+            font=dict(color='#6c757d', size=11),
+            margin=dict(l=20, r=20, t=20, b=20),
+            height=300,
+            showlegend=False,
+            xaxis=dict(type='category'),
+        )
+        weekly_chart = json.dumps(fig2, cls=PlotlyJSONEncoder)
+
+    context = {
+        'weight_logs': list(weight_logs[:10]),
+        'weight_chart': weight_chart,
+        'weekly_chart': weekly_chart,
+        'analytics': analytics,
+    }
+    return render(request, 'nutrition/progress.html', context)
+
+
+def food_catalog(request):
+    form = FoodSearchForm(request.GET or None)
+    foods = FoodItem.objects.select_related('category').all()
+
+    if form.is_valid():
+        query = form.cleaned_data.get('query')
+        category = form.cleaned_data.get('category')
+        max_calories = form.cleaned_data.get('max_calories')
+        sort_by = form.cleaned_data.get('sort_by')
+
+        if query:
+            foods = foods.filter(
+                Q(name__icontains=query) | Q(description__icontains=query)
+            )
+        if category:
+            foods = foods.filter(category=category)
+        if max_calories:
+            foods = foods.filter(calories__lte=max_calories)
+        if sort_by:
+            foods = foods.order_by(sort_by)
+
+    category_stats = FoodCategory.objects.annotate(
+        avg_calories=Avg('food_items__calories'),
+        count=Count('food_items')
+    ).filter(count__gt=0)
+
+    context = {
+        'foods': foods,
+        'form': form,
+        'category_stats': category_stats,
+        'total_count': foods.count(),
+    }
+    return render(request, 'nutrition/food_catalog.html', context)
+
+
+def food_detail(request, pk):
+    food = get_object_or_404(FoodItem, pk=pk)
+
+    fig = go.Figure(data=[go.Bar(
+        x=['Белки', 'Углеводы', 'Жиры', 'Клетчатка'],
+        y=[food.proteins, food.carbohydrates, food.fats, food.fiber],
+        marker=dict(color=['#667eea', '#f6d365', '#f093fb', '#4facfe']),
+        text=[f'{v}г' for v in [food.proteins, food.carbohydrates, food.fats, food.fiber]],
+        textposition='outside',
+    )])
+
+    fig.update_layout(
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+        font=dict(color='#6c757d', size=12),
+        margin=dict(l=20, r=20, t=20, b=20),
+        height=280,
+        showlegend=False,
+        yaxis=dict(gridcolor='rgba(0,0,0,0.05)', title='г на 100г'),
+    )
+
+    nutrients_chart = json.dumps(fig, cls=PlotlyJSONEncoder)
+
+    similar_foods = FoodItem.objects.filter(
+        category=food.category
+    ).exclude(pk=pk)[:4]
+
+    context = {
+        'food': food,
+        'nutrients_chart': nutrients_chart,
+        'similar_foods': similar_foods,
+    }
+    return render(request, 'nutrition/food_detail.html', context)
+
+
+def search_food_api(request):
+    query = request.GET.get('q', '').strip()
+    if not query or len(query) < 2:
+        return JsonResponse({'results': [], 'error': 'Слишком короткий запрос'})
+
+    app_id = settings.NUTRITIONIX_APP_ID
+    api_key = settings.NUTRITIONIX_API_KEY
+
+    if not app_id or not api_key:
+        demo_data = _get_demo_nutrition_data(query)
+        return JsonResponse({'results': demo_data, 'source': 'demo'})
+
+    try:
+        url = 'https://trackapi.nutritionix.com/v2/search/instant'
+        headers = {
+            'x-app-id': app_id,
+            'x-app-key': api_key,
+        }
+        params = {'query': query, 'detailed': True}
+        response = requests.get(url, headers=headers, params=params, timeout=5)
+        response.raise_for_status()
+        data = response.json()
+
+        results = []
+        for item in data.get('common', [])[:5]:
+            results.append({
+                'name': item.get('food_name', ''),
+                'photo': item.get('photo', {}).get('thumb', ''),
+                'calories': item.get('nf_calories', 0),
+            })
+        return JsonResponse({'results': results, 'source': 'api'})
+
+    except requests.RequestException:
+        demo_data = _get_demo_nutrition_data(query)
+        return JsonResponse({'results': demo_data, 'source': 'demo'})
+
+
+def _get_demo_nutrition_data(query):
+    demo_foods = [
+        {'name': 'Яблоко', 'calories': 52, 'photo': ''},
+        {'name': 'Банан', 'calories': 89, 'photo': ''},
+        {'name': 'Куриная грудка', 'calories': 165, 'photo': ''},
+        {'name': 'Гречка', 'calories': 343, 'photo': ''},
+        {'name': 'Творог 5%', 'calories': 121, 'photo': ''},
+        {'name': 'Авокадо', 'calories': 160, 'photo': ''},
+        {'name': 'Лосось', 'calories': 208, 'photo': ''},
+        {'name': 'Брокколи', 'calories': 34, 'photo': ''},
+    ]
+    return [f for f in demo_foods if query.lower() in f['name'].lower()]
+
+
+@login_required
+def calorie_calculator(request):
+    profile, _ = UserProfile.objects.get_or_create(user=request.user)
+    result = None
 
     if request.method == 'POST':
-        item.delete()
-        messages.success(request, 'Продукт удалён из рациона.')
+        try:
+            weight = float(request.POST.get('weight', profile.weight or 70))
+            height = float(request.POST.get('height', profile.height or 170))
+            age = int(request.POST.get('age', profile.age or 25))
+            gender = request.POST.get('gender', profile.gender or 'M')
+            activity = request.POST.get('activity', profile.activity_level or 'moderate')
+            goal = request.POST.get('goal', profile.goal or 'maintain')
 
-    return redirect(f'/ration/?date={ration_date}')
+            if gender == 'M':
+                bmr = 10 * weight + 6.25 * height - 5 * age + 5
+            else:
+                bmr = 10 * weight + 6.25 * height - 5 * age - 161
+
+            multipliers = {
+                'sedentary': 1.2,
+                'light': 1.375,
+                'moderate': 1.55,
+                'active': 1.725,
+                'very_active': 1.9,
+            }
+            tdee = bmr * multipliers.get(activity, 1.55)
+            adjustments = {'lose': -500, 'maintain': 0, 'gain': 500}
+            final_calories = round(tdee + adjustments.get(goal, 0))
+
+            result = {
+                'bmr': round(bmr),
+                'tdee': round(tdee),
+                'target': final_calories,
+                'proteins': round(final_calories * 0.3 / 4),
+                'carbs': round(final_calories * 0.45 / 4),
+                'fats': round(final_calories * 0.25 / 9),
+            }
+        except (ValueError, TypeError):
+            messages.error(request, 'Проверьте корректность введённых данных.')
+
+    context = {
+        'profile': profile,
+        'result': result,
+    }
+    return render(request, 'calorie_calculator.html', context)
+
+
+@login_required
+def add_food_item(request):
+    if request.method == 'POST':
+        form = FoodItemForm(request.POST, request.FILES)
+        if form.is_valid():
+            food = form.save()
+            messages.success(request, f'Продукт «{food.name}» добавлен в каталог!')
+            return redirect('nutrition:food_detail', pk=food.pk)
+    else:
+        form = FoodItemForm()
+
+    return render(request, 'nutrition/add_food_item.html', {'form': form})

@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+{% block title %}Калькулятор калорий — NutriTrack{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h1 class="section-title mb-2">Калькулятор калорий</h1>
+    <p class="text-muted mb-4">Расчёт по формуле Миффлина — Сан Жеора</p>
+
+    <div class="row g-4">
+        <div class="col-md-5">
+            <div class="card p-4">
+                <h5 class="fw-700 mb-4">Введите параметры</h5>
+                <form method="post">
+                    {% csrf_token %}
+
+                    <div class="mb-3">
+                        <label class="form-label fw-600">Пол</label>
+                        <select name="gender" class="form-select">
+                            <option value="M">Мужской</option>
+                            <option value="F">Женский</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-600">Возраст</label>
+                        <input type="number" name="age" class="form-control"
+                               value="{{ profile.age|default:25 }}">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-600">Вес (кг)</label>
+                        <input type="number" step="0.1" name="weight" class="form-control"
+                               value="{{ profile.weight|default:70 }}">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-600">Рост (см)</label>
+                        <input type="number" step="0.1" name="height" class="form-control"
+                               value="{{ profile.height|default:170 }}">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-600">Активность</label>
+                        <select name="activity" class="form-select">
+                            <option value="sedentary">Сидячий образ жизни</option>
+                            <option value="light">Лёгкая активность</option>
+                            <option value="moderate" selected>Умеренная активность</option>
+                            <option value="active">Высокая активность</option>
+                            <option value="very_active">Очень высокая активность</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-600">Цель</label>
+                        <select name="goal" class="form-select">
+                            <option value="lose">Похудение</option>
+                            <option value="maintain" selected>Поддержание веса</option>
+                            <option value="gain">Набор массы</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100">
+                        Рассчитать
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div class="col-md-7">
+            {% if result %}
+            <div class="card p-4">
+                <h5 class="fw-700 mb-4">Результат</h5>
+
+                <div class="row g-3">
+                    <div class="col-6">
+                        <div class="card p-3 text-center">
+                            <div class="fw-800 fs-4">{{ result.bmr }}</div>
+                            <div class="small text-muted">BMR</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="card p-3 text-center">
+                            <div class="fw-800 fs-4">{{ result.tdee }}</div>
+                            <div class="small text-muted">TDEE</div>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="card p-4 text-center">
+                            <div class="fw-800 fs-2">{{ result.target }} ккал</div>
+                            <div class="small text-muted">Норма в день</div>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="card p-3 text-center">
+                            <div class="fw-700">{{ result.proteins }}г</div>
+                            <div class="small text-muted">Белки</div>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="card p-3 text-center">
+                            <div class="fw-700">{{ result.carbs }}г</div>
+                            <div class="small text-muted">Углеводы</div>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="card p-3 text-center">
+                            <div class="fw-700">{{ result.fats }}г</div>
+                            <div class="small text-muted">Жиры</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="card p-5 text-center">
+                <h4 class="fw-700">Заполни форму слева</h4>
+                <p class="text-muted mb-0">После этого появится расчёт</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
