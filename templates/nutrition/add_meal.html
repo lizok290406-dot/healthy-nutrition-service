@@ -6,7 +6,7 @@
     <div class="row justify-content-center">
         <div class="col-md-6">
             <div class="card p-4">
-                <h3 class="fw-700 mb-4">
+                <h3 class="fw-bold mb-4">
                     <i class="bi bi-plus-circle me-2" style="color:#667eea;"></i>
                     Добавить приём пищи
                 </h3>
@@ -14,33 +14,33 @@
                 <form method="post">
                     {% csrf_token %}
                     <div class="mb-3">
-                        <label class="form-label fw-600">Продукт</label>
-                        {{ form.food_item }}
+                        <label class="form-label fw-bold">Продукт</label>
+                        {{ form.product }}
+                        {% if form.product.errors %}
+                        <div class="text-danger small mt-1">{{ form.product.errors.0 }}</div>
+                        {% endif %}
                     </div>
                     <div class="mb-3">
-                        <label class="form-label fw-600">Приём пищи</label>
+                        <label class="form-label fw-bold">Приём пищи</label>
                         {{ form.meal_type }}
                     </div>
                     <div class="mb-3">
-                        <label class="form-label fw-600">Количество (г)</label>
-                        {{ form.amount }}
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-600">Дата</label>
-                        {{ form.date }}
+                        <label class="form-label fw-bold">Количество (г)</label>
+                        {{ form.amount_grams }}
+                        {% if form.amount_grams.errors %}
+                        <div class="text-danger small mt-1">{{ form.amount_grams.errors.0 }}</div>
+                        {% endif %}
                     </div>
                     <div class="mb-4">
-                        <label class="form-label fw-600">Заметки</label>
-                        {{ form.notes }}
+                        <label class="form-label fw-bold">Дата</label>
+                        {{ form.date }}
                     </div>
                     <div class="d-flex gap-2">
                         <button type="submit" class="btn btn-primary flex-grow-1">
                             <i class="bi bi-check-lg me-2"></i>Добавить
                         </button>
                         <a href="{% url 'nutrition:dashboard' %}"
-                           class="btn btn-outline-secondary">
-                            Отмена
-                        </a>
+                           class="btn btn-outline-secondary">Отмена</a>
                     </div>
                 </form>
             </div>
