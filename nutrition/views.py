@@ -227,64 +227,12 @@ def recommend(request):
         'remaining_calories': remaining_calories,
     })
 
-@login_required
-def analysis(request):
-    """Анализ соответствия съеденного индивидуальным нормам КБЖУ."""
-    today = timezone.now().date()
 
-    entries = DiaryEntry.objects.filter(
-        user=request.user, date=today
-    ).select_related('product')
 
-    consumed = {
-        'calories': round(sum(e.calories_consumed for e in entries)),
-        'protein': round(sum(e.protein_consumed for e in entries)),
-        'fat': round(sum(e.fat_consumed for e in entries)),
-        'carbs': round(sum(e.carbs_consumed for e in entries)),
-    }
-
-    profile, _ = UserProfile.objects.get_or_create(user=request.user)
-    has_norm = bool(profile.weight and profile.height and profile.age)
-
-    rows = []
-    if has_norm:
-        macros = profile.calculate_macros()
-        norms = {
-            'calories': round(profile.calculate_tdee()),
-            'protein': macros['protein'],
-            'fat': macros['fat'],
-            'carbs': macros['carbs'],
-        }
-
-        def percent(eaten, norm):
-            if not norm:
-                return 0
-            return min(round(eaten / norm * 100), 100)
-
-        rows = [
-            {'name': 'Калории', 'unit': 'ккал', 'eaten': consumed['calories'],
-             'norm': norms['calories'],
-             'percent': percent(consumed['calories'], norms['calories'])},
-            {'name': 'Белки', 'unit': 'г', 'eaten': consumed['protein'],
-             'norm': norms['protein'],
-             'percent': percent(consumed['protein'], norms['protein'])},
-            {'name': 'Жиры', 'unit': 'г', 'eaten': consumed['fat'],
-             'norm': norms['fat'],
-             'percent': percent(consumed['fat'], norms['fat'])},
-            {'name': 'Углеводы', 'unit': 'г', 'eaten': consumed['carbs'],
-             'norm': norms['carbs'],
-             'percent': percent(consumed['carbs'], norms['carbs'])},
-        ]
-
-    return render(request, 'nutrition/analysis.html', {
-        'today': today,
-        'rows': rows,
-        'has_norm': has_norm,
-    })
 
 @login_required
 def dashboard(request):
-    """Дневник питания"""
+    """Дневник питания + соответствие индивидуальным нормам КБЖУ."""
     today = timezone.now().date()
 
     entries = DiaryEntry.objects.filter(
@@ -321,6 +269,39 @@ def dashboard(request):
         calorie_percent = min(
             round(totals['calories'] / daily_goal * 100, 1), 100
         )
+
+    # Соответствие нормам по КБЖУ (если в профиле есть вес, рост, возраст)
+    norm_rows = []
+    try:
+        profile = request.user.profile
+    except UserProfile.DoesNotExist:
+        profile = None
+    if profile and profile.weight and profile.height and profile.age:
+        macros = profile.calculate_macros()
+        norms = {
+            'calories': round(profile.calculate_tdee()),
+            'protein': macros['protein'],
+            'fat': macros['fat'],
+            'carbs': macros['carbs'],
+        }
+
+        def percent(eaten, norm):
+            return min(round(eaten / norm * 100), 100) if norm else 0
+
+        norm_rows = [
+            {'name': 'Калории', 'unit': 'ккал', 'eaten': round(totals['calories']),
+             'norm': norms['calories'],
+             'percent': percent(totals['calories'], norms['calories'])},
+            {'name': 'Белки', 'unit': 'г', 'eaten': round(totals['protein']),
+             'norm': norms['protein'],
+             'percent': percent(totals['protein'], norms['protein'])},
+            {'name': 'Жиры', 'unit': 'г', 'eaten': round(totals['fat']),
+             'norm': norms['fat'],
+             'percent': percent(totals['fat'], norms['fat'])},
+            {'name': 'Углеводы', 'unit': 'г', 'eaten': round(totals['carbs']),
+             'norm': norms['carbs'],
+             'percent': percent(totals['carbs'], norms['carbs'])},
+        ]
 
     budget_plan = BudgetPlan.objects.filter(
         user=request.user, date=today
@@ -362,13 +343,13 @@ def dashboard(request):
         'today': today,
         'daily_goal': daily_goal,
         'calorie_percent': calorie_percent,
+        'norm_rows': norm_rows,
         'budget_plan': budget_plan,
         'chart_labels': chart_labels,
         'chart_data': chart_data,
         'bmi': bmi,
         'bmi_category': bmi_category,
     })
-
 
 @login_required
 def add_meal(request):

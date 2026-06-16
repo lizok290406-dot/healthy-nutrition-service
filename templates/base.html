@@ -396,12 +396,6 @@
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link {% if request.resolver_match.url_name == 'analysis' %}active{% endif %}"
-                       href="{% url 'nutrition:analysis' %}">
-                        <i class="bi bi-clipboard-check me-1"></i>Нормы
-                    </a>
-                </li>
-                <li class="nav-item">
                     <a class="nav-link {% if request.resolver_match.url_name == 'calorie_calculator' %}active{% endif %}"
                        href="{% url 'nutrition:calorie_calculator' %}">
                         <i class="bi bi-calculator me-1"></i>Калькулятор
@@ -525,7 +519,7 @@
         <hr class="border-secondary mt-4">
         <p class="text-center small mb-0"
            style="color:rgba(255,255,255,0.35);">
-            © 2025 NutriTrack. Учебный проект.
+            © 2025 NutriTrack.
         </p>
     </div>
 </footer>
