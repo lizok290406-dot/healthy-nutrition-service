@@ -121,6 +121,19 @@ class UserProfile(models.Model):
         tdee = bmr * multipliers.get(self.activity_level, 1.55)
         adjustments = {'lose': -500, 'maintain': 0, 'gain': 300}
         return round(tdee + adjustments.get(self.goal, 0), 0)
+    
+    def calculate_macros(self):
+        """Нормы БЖУ (в граммах) на основе суточной нормы калорий.
+
+        Белки — 30% калорий, жиры — 30%, углеводы — оставшиеся 40%.
+        В 1 г белка и углеводов 4 ккал, в 1 г жира 9 ккал.
+        """
+        tdee = self.calculate_tdee()
+        return {
+            'protein': round(tdee * 0.3 / 4),
+            'fat': round(tdee * 0.3 / 9),
+            'carbs': round(tdee * 0.4 / 4),
+        }
 
     def __str__(self):
         return f'Профиль {self.user.username}'

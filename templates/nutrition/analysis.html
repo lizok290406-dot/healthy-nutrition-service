@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% block title %}Соответствие нормам — NutriTrack{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+    <h2 class="section-title mb-1">📊 Соответствие нормам</h2>
+    <p class="text-muted mb-4">
+        Сравнение того, что ты съел сегодня, с твоей индивидуальной нормой КБЖУ.
+    </p>
+
+    {% if has_norm %}
+    <div class="card p-4">
+        {% for row in rows %}
+        <div class="mb-4">
+            <div class="d-flex justify-content-between mb-1">
+                <span class="fw-bold">{{ row.name }}</span>
+                <span class="text-muted">
+                    {{ row.eaten }} / {{ row.norm }} {{ row.unit }} ({{ row.percent }}%)
+                </span>
+            </div>
+            <div class="progress">
+                <div class="progress-bar" role="progressbar"
+                     style="width: {{ row.percent }}%;"></div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        Чтобы увидеть свои нормы, сначала рассчитай их на странице
+        <a href="{% url 'nutrition:calorie_calculator' %}">Калькулятор</a>
+        (укажи вес, рост, возраст, пол, цель и активность).
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

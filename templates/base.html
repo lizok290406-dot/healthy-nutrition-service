@@ -91,7 +91,6 @@
             box-shadow: var(--card-shadow-hover);
         }
 
-        /* STAT CARDS — одинаковая высота и выравнивание */
         .stat-card {
             text-align: center;
             padding: 28px 16px;
@@ -397,6 +396,12 @@
                     </a>
                 </li>
                 <li class="nav-item">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'analysis' %}active{% endif %}"
+                       href="{% url 'nutrition:analysis' %}">
+                        <i class="bi bi-clipboard-check me-1"></i>Нормы
+                    </a>
+                </li>
+                <li class="nav-item">
                     <a class="nav-link {% if request.resolver_match.url_name == 'calorie_calculator' %}active{% endif %}"
                        href="{% url 'nutrition:calorie_calculator' %}">
                         <i class="bi bi-calculator me-1"></i>Калькулятор
@@ -516,16 +521,6 @@
                     </li>
                 </ul>
             </div>
-            <div class="col-md-4">
-                <h6 class="text-white fw-700 mb-3">Технологии</h6>
-                <div class="d-flex flex-wrap gap-2">
-                    <span class="badge bg-secondary">Python 3.10</span>
-                    <span class="badge bg-secondary">Django 4.2</span>
-                    <span class="badge bg-secondary">Plotly</span>
-                    <span class="badge bg-secondary">Pandas</span>
-                    <span class="badge bg-secondary">Bootstrap 5</span>
-                </div>
-            </div>
         </div>
         <hr class="border-secondary mt-4">
         <p class="text-center small mb-0"
@@ -537,7 +532,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <style>
-    /* Карточки категорий — одинаковый размер */
     .category-card {
         background: #ffffff;
         border: 2px solid #e9ecef;
