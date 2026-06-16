@@ -377,6 +377,12 @@
                         <i class="bi bi-grid me-1"></i>Каталог
                     </a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'recommend' %}active{% endif %}"
+                       href="{% url 'nutrition:recommend' %}">
+                        <i class="bi bi-stars me-1"></i>Подбор
+                    </a>
+                </li>
                 {% if user.is_authenticated %}
                 <li class="nav-item">
                     <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}"

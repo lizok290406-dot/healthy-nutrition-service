@@ -1,12 +1,10 @@
-# nutrition/views.py
-
 import requests
 from datetime import timedelta
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.db.models import Q, Count, Avg
+from django.db.models import Q, Count, Avg, F, FloatField, ExpressionWrapper
 from django.http import JsonResponse
 from django.utils import timezone
 
@@ -163,6 +161,71 @@ def food_detail(request, pk):
     food = get_object_or_404(Product, pk=pk)
     return render(request, 'nutrition/food_detail.html', {'food': food})
 
+def recommend(request):
+    """Подбор продуктов: дёшево и полезно для студента.
+
+    Считаем «белок на рубль» прямо в запросе к базе (F-объекты)
+    и сортируем продукты от самых выгодных к менее выгодным.
+    """
+    max_calories = request.GET.get('max_calories', '').strip()
+    max_price = request.GET.get('max_price', '').strip()
+    selected_category = request.GET.get('category', '').strip()
+
+    # Берём только продукты, у которых указана цена больше нуля
+    products = Product.objects.select_related('category').filter(
+        price_per_100g__isnull=False,
+        price_per_100g__gt=0,
+    )
+
+    if selected_category:
+        try:
+            products = products.filter(category_id=int(selected_category))
+        except (ValueError, TypeError):
+            pass
+
+    if max_calories:
+        try:
+            products = products.filter(calories__lte=float(max_calories))
+        except (ValueError, TypeError):
+            pass
+
+    if max_price:
+        try:
+            products = products.filter(price_per_100g__lte=float(max_price))
+        except (ValueError, TypeError):
+            pass
+
+    # F-объекты: база сама делит "белок / цена" для каждого продукта
+    products = products.annotate(
+        protein_per_ruble=ExpressionWrapper(
+            F('protein') / F('price_per_100g'),
+            output_field=FloatField(),
+        )
+    ).order_by('-protein_per_ruble')[:15]
+
+    # Сколько калорий осталось на сегодня (если есть норма в профиле)
+    remaining_calories = None
+    if request.user.is_authenticated:
+        try:
+            goal = request.user.profile.daily_calorie_goal
+        except UserProfile.DoesNotExist:
+            goal = None
+        if goal:
+            today = timezone.now().date()
+            entries = DiaryEntry.objects.filter(
+                user=request.user, date=today
+            ).select_related('product')
+            consumed = sum(e.calories_consumed for e in entries)
+            remaining_calories = round(goal - consumed)
+
+    return render(request, 'nutrition/recommend.html', {
+        'products': products,
+        'all_categories': Category.objects.all(),
+        'max_calories': max_calories,
+        'max_price': max_price,
+        'selected_category': selected_category,
+        'remaining_calories': remaining_calories,
+    })
 
 @login_required
 def dashboard(request):
