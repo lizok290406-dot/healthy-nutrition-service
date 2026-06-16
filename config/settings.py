@@ -89,7 +89,3 @@ LOGIN_URL = 'users:login'
 
 CRISPY_ALLOWED_TEMPLATE_PACKS = 'bootstrap5'
 CRISPY_TEMPLATE_PACK = 'bootstrap5'
-
-# Nutritionix API
-NUTRITIONIX_APP_ID = os.environ.get('NUTRITIONIX_APP_ID', '')
-NUTRITIONIX_API_KEY = os.environ.get('NUTRITIONIX_API_KEY', '')
