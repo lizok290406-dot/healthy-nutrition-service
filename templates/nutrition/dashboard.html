@@ -20,7 +20,7 @@
     <!-- STAT CARDS — калории белки углеводы жиры -->
     <div class="row g-3 mb-4">
         <div class="col-6 col-md-3">
-            <div class="card stat-card card-gradient-primary">
+            <div class="card stat-card card-gradient-primary  h-100">
                 <span class="stat-icon">🔥</span>
                 <div class="stat-value">
                     {{ totals.calories|floatformat:0|default:"0" }}
@@ -35,7 +35,7 @@
         </div>
 
         <div class="col-6 col-md-3">
-            <div class="card stat-card card-gradient-blue">
+            <div class="card stat-card card-gradient-blue  h-100">
                 <span class="stat-icon">💪</span>
                 <div class="stat-value">
                     {{ totals.protein|floatformat:0|default:"0" }}г
@@ -45,7 +45,7 @@
         </div>
 
         <div class="col-6 col-md-3">
-            <div class="card stat-card card-gradient-warm">
+            <div class="card stat-card card-gradient-warm  h-100">
                 <span class="stat-icon">⚡</span>
                 <div class="stat-value">
                     {{ totals.carbs|floatformat:0|default:"0" }}г
@@ -55,7 +55,7 @@
         </div>
 
         <div class="col-6 col-md-3">
-            <div class="card stat-card card-gradient-pink">
+            <div class="card stat-card card-gradient-pink  h-100">
                 <span class="stat-icon">🥑</span>
                 <div class="stat-value">
                     {{ totals.fat|floatformat:0|default:"0" }}г
