@@ -19,26 +19,42 @@
         {% endif %}
     </div>
 
-    <!-- ОДИН ПОИСК С ФИЛЬТРАМИ -->
+    <!-- ПОИСК С ФИЛЬТРАМИ -->
     <div class="card mb-4">
         <div class="card-body p-4">
             <form method="get">
                 <div class="row g-3 align-items-end">
                     <div class="col-md-4">
-                        <label class="form-label fw-600">Поиск продукта:</label>
-                        {{ form.query }}
+                        <label class="form-label fw-bold">Поиск продукта:</label>
+                        <input type="text" name="q" value="{{ query }}"
+                               class="form-control" placeholder="Например: яблоко"
+                               autocomplete="off">
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label fw-600">Категория:</label>
-                        {{ form.category }}
+                        <label class="form-label fw-bold">Категория:</label>
+                        <select name="category" class="form-select">
+                            <option value="">Все</option>
+                            {% for cat in all_categories %}
+                            <option value="{{ cat.id }}"
+                                {% if selected_category == cat.id|stringformat:"s" %}selected{% endif %}>
+                                {{ cat.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label fw-600">Макс. калорий:</label>
-                        {{ form.max_calories }}
+                        <label class="form-label fw-bold">Макс. калорий:</label>
+                        <input type="number" name="max_calories" value="{{ max_calories }}"
+                               class="form-control" min="0" placeholder="ккал">
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label fw-600">Сортировка:</label>
-                        {{ form.sort_by }}
+                        <label class="form-label fw-bold">Сортировка:</label>
+                        <select name="sort_by" class="form-select">
+                            <option value="">—</option>
+                            <option value="name" {% if sort_by == 'name' %}selected{% endif %}>По названию</option>
+                            <option value="calories_asc" {% if sort_by == 'calories_asc' %}selected{% endif %}>Калории ↑</option>
+                            <option value="calories_desc" {% if sort_by == 'calories_desc' %}selected{% endif %}>Калории ↓</option>
+                        </select>
                     </div>
                     <div class="col-md-2">
                         <button type="submit" class="btn btn-primary w-100">
@@ -78,15 +94,14 @@
         <div class="col-6 col-md-4 col-lg-3">
             <a href="{% url 'nutrition:food_detail' food.pk %}"
                class="text-decoration-none">
-                <div class="card food-card h-100 p-3"
-                     style="min-height: 200px;">
+                <div class="card food-card h-100 p-3" style="min-height: 200px;">
 
                     <div class="text-center mb-2"
                          style="font-size:2.5rem; line-height:1.2;">
-                        {{ food.category.icon }}
+                        {{ food.emoji }}
                     </div>
 
-                    <h6 class="fw-700 text-dark mb-1 text-center">
+                    <h6 class="fw-bold text-dark mb-1 text-center">
                         {{ food.name }}
                     </h6>
                     <small class="text-muted d-block mb-2 text-center">
@@ -94,32 +109,27 @@
                     </small>
 
                     <div class="mt-auto">
-                        <div class="d-flex justify-content-between
-                                    align-items-center mb-2">
-                            <span class="fw-800"
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="fw-bold"
                                   style="color:#f5576c; font-size:1.1rem;">
                                 {{ food.calories }} ккал
                             </span>
                             <span class="badge rounded-pill
-                                {% if food.caloric_balance == 'low' %}
-                                    badge-calories-low
-                                {% elif food.caloric_balance == 'medium' %}
-                                    badge-calories-medium
-                                {% else %}
-                                    badge-calories-high
-                                {% endif %}">
+                                {% if food.calories < 100 %}badge-calories-low
+                                {% elif food.calories < 250 %}badge-calories-medium
+                                {% else %}badge-calories-high{% endif %}">
                                 /100г
                             </span>
                         </div>
                         <div class="d-flex flex-wrap gap-1">
                             <span class="nutrient-pill pill-protein">
-                                Б {{ food.proteins }}г
+                                Б {{ food.protein }}г
                             </span>
                             <span class="nutrient-pill pill-carbs">
-                                У {{ food.carbohydrates }}г
+                                У {{ food.carbs }}г
                             </span>
                             <span class="nutrient-pill pill-fat">
-                                Ж {{ food.fats }}г
+                                Ж {{ food.fat }}г
                             </span>
                         </div>
                     </div>
@@ -128,9 +138,8 @@
         </div>
         {% empty %}
         <div class="col-12 text-center py-5">
-            <i class="bi bi-search"
-               style="font-size:4rem; color:#dee2e6;"></i>
-            <h4 class="fw-700 mt-3">Ничего не найдено</h4>
+            <i class="bi bi-search" style="font-size:4rem; color:#dee2e6;"></i>
+            <h4 class="fw-bold mt-3">Ничего не найдено</h4>
             <p class="text-muted">Попробуйте изменить критерии поиска</p>
         </div>
         {% endfor %}

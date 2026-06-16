@@ -95,34 +95,27 @@ def home(request):
 
 
 def food_catalog(request):
-    """
-    Каталог продуктов.
-    Поиск БЕЗ учёта регистра — icontains.
-    яблоко = Яблоко = ЯБЛОКО = ЯбЛоКо
+    """Каталог продуктов: поиск, фильтр по категории и калориям, сортировка.
+
+    Поиск по названию делаем в Python через .lower(), потому что SQLite
+    не умеет искать без учёта регистра по русским буквам (яблоко = Яблоко).
     """
     query = request.GET.get('q', '').strip()
     selected_category = request.GET.get('category', '').strip()
     max_calories = request.GET.get('max_calories', '').strip()
     sort_by = request.GET.get('sort_by', '').strip()
 
-    products = Product.objects.select_related('category').all()
-
-    if query:
-        products = products.filter(name__icontains=query)
+    products_qs = Product.objects.select_related('category').all()
 
     if selected_category:
         try:
-            products = products.filter(
-                category_id=int(selected_category)
-            )
+            products_qs = products_qs.filter(category_id=int(selected_category))
         except (ValueError, TypeError):
             pass
 
     if max_calories:
         try:
-            products = products.filter(
-                calories__lte=float(max_calories)
-            )
+            products_qs = products_qs.filter(calories__lte=float(max_calories))
         except (ValueError, TypeError):
             pass
 
@@ -132,7 +125,14 @@ def food_catalog(request):
         'calories_desc': '-calories',
     }
     if sort_by in sort_map:
-        products = products.order_by(sort_map[sort_by])
+        products_qs = products_qs.order_by(sort_map[sort_by])
+
+    # Поиск по названию без учёта регистра (в том числе для русских букв)
+    if query:
+        q_lower = query.lower()
+        foods = [p for p in products_qs if q_lower in p.name.lower()]
+    else:
+        foods = list(products_qs)
 
     all_categories = Category.objects.all()
 
@@ -145,9 +145,9 @@ def food_catalog(request):
         cat.icon = cat.emoji
 
     return render(request, 'nutrition/food_catalog.html', {
-        'foods': products,
+        'foods': foods,
         'query': query,
-        'total_count': products.count(),
+        'total_count': len(foods),
         'category_stats': category_stats,
         'all_categories': all_categories,
         'selected_category': selected_category,
