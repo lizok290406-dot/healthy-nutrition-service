@@ -135,6 +135,26 @@ class UserProfile(models.Model):
             'carbs': round(tdee * 0.4 / 4),
         }
 
+    def calculate_bmi(self):
+        """Индекс массы тела (ИМТ). None, если нет веса или роста."""
+        if not (self.weight and self.height):
+            return None
+        height_m = self.height / 100
+        return round(self.weight / (height_m ** 2), 1)
+
+    def get_bmi_category(self):
+        """Категория ИМТ по значению индекса массы тела."""
+        bmi = self.calculate_bmi()
+        if bmi is None:
+            return ''
+        if bmi < 18.5:
+            return 'Недостаточный вес'
+        if bmi < 25:
+            return 'Нормальный вес'
+        if bmi < 30:
+            return 'Избыточный вес'
+        return 'Ожирение'
+
     def __str__(self):
         return f'Профиль {self.user.username}'
 
