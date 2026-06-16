@@ -1,97 +1,74 @@
-# 🥗 NutriTrack — Умный сервис отслеживания питания
+# 🥗 NutriTrack — здоровое питание для студентов
 
-Персональный дневник питания с расчётом индивидуальной нормы калорий по
-формуле Миффлина — Сан Жеора, аналитикой на базе Pandas и интерактивными
-графиками Plotly. Помогает пользователям осознанно управлять рационом и
-достигать своих целей.
+Сервис подбора здорового питания для студентов с ограниченным бюджетом. Помогает выбирать продукты с лучшим соотношением «польза/цена», считает КБЖУ и стоимость рациона и показывает, насколько питание соответствует индивидуальной норме калорий и БЖУ.
 
-**🌐 Рабочий проект:** [https://ваш-логин.pythonanywhere.com](https://ваш-логин.pythonanywhere.com)
+**🌐 Рабочий проект:** _ссылка появится после деплоя на PythonAnywhere_
 
 ## 📸 Скриншоты
-
-![Главная страница](docs/home.png)
-*Главная страница с героем и каталогом категорий*
-
-![Личный кабинет](docs/dashboard.png)
-*Дневник питания с графиками Plotly*
-
-![Каталог продуктов](docs/catalog.png)
-*Фильтрация и поиск через API*
+![Главная](docs/home.png)
+![Подбор продуктов](docs/recommend.png)
+![Дневник и нормы](docs/dashboard.png)
 
 ## 🛠 Технологии
-
 | | Стек |
 |---|---|
-| **Backend** | Python 3.10, Django 4.2 |
-| **Аналитика** | Pandas 2.1, Plotly 5.18 |
-| **API** | Nutritionix API (requests) |
-| **Frontend** | Bootstrap 5.3, Bootstrap Icons |
-| **Формы** | Django Forms / ModelForms |
-| **БД** | SQLite (dev), совместимо с PostgreSQL |
-| **Хостинг** | PythonAnywhere |
+| Backend | Python 3.13, Django 6.0 |
+| Визуализация | Plotly |
+| Внешний API | Open Food Facts (requests) |
+| Frontend | Bootstrap 5.3, Bootstrap Icons, crispy-forms |
+| База данных | SQLite |
+| Хостинг | PythonAnywhere |
+
+## ✨ Возможности
+- 🔍 Каталог с поиском (без учёта регистра, в т.ч. кириллица), фильтрами и сортировкой
+- 🥇 Подбор продуктов по выгодности (расчёт в БД через F-объекты)
+- 📔 Дневник питания с автоподсчётом КБЖУ и стоимости порции
+- 🎯 Индивидуальная норма калорий (формула Миффлина — Сан Жеора) и БЖУ
+- 📊 Соответствие съеденного норме + интерактивные графики Plotly
+- 💰 Учёт дневного бюджета на еду
+- 🌐 Поиск продуктов через внешний API Open Food Facts
 
 ## 🚀 Запуск локально
-
-### 1. Клонировать репозиторий
+1. Клонировать репозиторий:
 ```bash
-git clone https://github.com/lizok290406/healthy-nutrition-service.git
-cd healthy-nutrition-service
+   git clone https://github.com/lizok290406-dot/healthy-nutrition-service.git
+   cd healthy-nutrition-service
 ```
-
-### 2. Создать виртуальное окружение
+2. Создать и активировать виртуальное окружение:
 ```bash
-python -m venv venv
-# Linux/Mac:
-source venv/bin/activate
-# Windows:
-venv\Scripts\activate
+   python -m venv venv
+   venv\Scripts\activate      # Windows
+   source venv/bin/activate   # Linux/Mac
 ```
-
-### 3. Установить зависимости
+3. Установить зависимости:
 ```bash
-pip install -r requirements.txt
+   pip install -r requirements.txt
 ```
-
-### 4. Создать файл .env
+4. Создать `.env` из примера и указать SECRET_KEY:
 ```bash
-cp .env.example .env
-# Откройте .env и заполните SECRET_KEY
+   copy .env.example .env     # Windows
 ```
-
-### 5. Выполнить миграции
+5. Применить миграции:
 ```bash
-python manage.py migrate
+   python manage.py migrate
 ```
-
-### 6. Загрузить тестовые данные
+6. Наполнить базу продуктами:
 ```bash
-python manage.py loaddata fixtures/initial_data.json
+   python seed_products.py
 ```
-
-### 7. Создать суперпользователя
+7. Создать администратора:
 ```bash
-python manage.py createsuperuser
+   python manage.py createsuperuser
 ```
-
-### 8. Запустить сервер
+8. Запустить сервер:
 ```bash
-python manage.py runserver
+   python manage.py runserver
 ```
+   Открыть http://127.0.0.1:8000
 
-Открыть: [http://127.0.0.1:8000](http://127.0.0.1:8000)
-
-## 📊 Модели данных
-
-- **FoodCategory** — категории продуктов
-- **FoodItem** — продукты с нутриентами (калории, БЖУ, клетчатка)
-- **UserProfile** — профиль с расчётом BMR/TDEE/BMI
-- **MealLog** — дневник приёмов пищи
-- **WeightLog** — дневник динамики веса
-
-## ✨ Ключевые функции
-
-- 🔢 Расчёт нормы калорий (формула Миффлина — Сан Жеора)
-- 📊 Интерактивные графики Plotly (калории за 7/30 дней, динамика веса)
-- 🔍 Поиск продуктов через Nutritionix API (AJAX)
-- 📈 Аналитика Pandas (средние, мин., макс. за период)
-- 🎯 Отслеживание прогресса по цели (похудение/поддержание/набор)
+## 📦 Модели данных
+- **Category** — категории продуктов
+- **Product** — продукты с КБЖУ и ценой на 100 г
+- **UserProfile** — профиль с расчётом нормы калорий, БЖУ и ИМТ
+- **DiaryEntry** — записи дневника питания
+- **BudgetPlan** — дневной бюджет на еду

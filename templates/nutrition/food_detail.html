@@ -16,25 +16,29 @@
     <div class="row g-4">
         <div class="col-md-4">
             <div class="card p-4 text-center h-100">
-                <div style="font-size: 6rem;">{{ food.category.icon }}</div>
-                <h2 class="fw-800 mt-3">{{ food.name }}</h2>
+                <div style="font-size: 6rem;">{{ food.emoji }}</div>
+                <h2 class="fw-bold mt-3">{{ food.name }}</h2>
                 <span class="badge rounded-pill px-3 py-2 mb-3"
                       style="background:linear-gradient(135deg,#667eea,#764ba2);color:white;">
                     {{ food.category.name }}
                 </span>
 
                 <div class="card card-gradient-primary p-3 mb-3">
-                    <div class="h2 fw-800 mb-0">{{ food.calories }}</div>
+                    <div class="h2 fw-bold mb-0">{{ food.calories }}</div>
                     <div class="small opacity-75">ккал на 100г</div>
                 </div>
 
-                {% if food.description %}
-                <p class="text-muted small">{{ food.description }}</p>
+                {% if food.price_per_100g %}
+                <div class="mb-3">
+                    <span class="fw-bold" style="color:#56ab2f; font-size:1.1rem;">
+                        {{ food.price_per_100g }} ₽
+                    </span>
+                    <span class="text-muted small">за 100 г</span>
+                </div>
                 {% endif %}
 
                 {% if user.is_authenticated %}
-                <a href="{% url 'nutrition:add_meal' %}?food={{ food.pk }}"
-                   class="btn btn-primary mt-auto">
+                <a href="{% url 'nutrition:add_meal' %}" class="btn btn-primary mt-auto">
                     <i class="bi bi-plus-lg me-2"></i>Добавить в дневник
                 </a>
                 {% endif %}
@@ -43,75 +47,36 @@
 
         <div class="col-md-8">
             <div class="card p-4 mb-4">
-                <h5 class="fw-700 mb-4">
-                    <i class="bi bi-bar-chart me-2" style="color:#667eea;"></i>
-                    Нутриенты на 100г
+                <h5 class="fw-bold mb-3">
+                    <i class="bi bi-pie-chart me-2" style="color:#667eea;"></i>
+                    Пищевая ценность на 100 г
                 </h5>
                 <div id="nutrientsChart"></div>
             </div>
 
-            <div class="row g-3 mb-4">
-                <div class="col-6 col-md-3">
+            <div class="row g-3">
+                <div class="col-md-4">
                     <div class="card stat-card card-gradient-blue p-3">
                         <span class="stat-icon" style="font-size:1.5rem;">💪</span>
-                        <div class="stat-value" style="font-size:1.3rem;">
-                            {{ food.proteins }}г
-                        </div>
+                        <div class="stat-value" style="font-size:1.3rem;">{{ food.protein }}г</div>
                         <div class="stat-label">Белки</div>
                     </div>
                 </div>
-                <div class="col-6 col-md-3">
+                <div class="col-md-4">
                     <div class="card stat-card card-gradient-warm p-3">
                         <span class="stat-icon" style="font-size:1.5rem;">⚡</span>
-                        <div class="stat-value" style="font-size:1.3rem;">
-                            {{ food.carbohydrates }}г
-                        </div>
+                        <div class="stat-value" style="font-size:1.3rem;">{{ food.carbs }}г</div>
                         <div class="stat-label">Углеводы</div>
                     </div>
                 </div>
-                <div class="col-6 col-md-3">
+                <div class="col-md-4">
                     <div class="card stat-card card-gradient-pink p-3">
                         <span class="stat-icon" style="font-size:1.5rem;">🥑</span>
-                        <div class="stat-value" style="font-size:1.3rem;">
-                            {{ food.fats }}г
-                        </div>
+                        <div class="stat-value" style="font-size:1.3rem;">{{ food.fat }}г</div>
                         <div class="stat-label">Жиры</div>
                     </div>
                 </div>
-                <div class="col-6 col-md-3">
-                    <div class="card stat-card card-gradient-green p-3">
-                        <span class="stat-icon" style="font-size:1.5rem;">🌿</span>
-                        <div class="stat-value" style="font-size:1.3rem;">
-                            {{ food.fiber }}г
-                        </div>
-                        <div class="stat-label">Клетчатка</div>
-                    </div>
-                </div>
             </div>
-
-            {% if similar_foods %}
-            <div class="card p-4">
-                <h5 class="fw-700 mb-3">Похожие продукты</h5>
-                <div class="row g-3">
-                    {% for item in similar_foods %}
-                    <div class="col-6 col-md-3">
-                        <a href="{% url 'nutrition:food_detail' item.pk %}"
-                           class="text-decoration-none">
-                            <div class="card p-3 text-center">
-                                <div style="font-size:2rem;">
-                                    {{ item.category.icon }}
-                                </div>
-                                <div class="fw-600 small mt-1">{{ item.name }}</div>
-                                <div style="color:#f5576c;" class="fw-700">
-                                    {{ item.calories }} ккал
-                                </div>
-                            </div>
-                        </a>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-            {% endif %}
         </div>
     </div>
 </div>
@@ -119,11 +84,17 @@
 
 {% block extra_js %}
 <script>
-{% if nutrients_chart %}
-const data = {{ nutrients_chart|safe }};
-Plotly.newPlot('nutrientsChart', data.data, data.layout, {
-    responsive: true, displayModeBar: false
-});
-{% endif %}
+    Plotly.newPlot('nutrientsChart', [{
+        type: 'pie',
+        labels: ['Белки', 'Жиры', 'Углеводы'],
+        values: [{{ food.protein }}, {{ food.fat }}, {{ food.carbs }}],
+        marker: { colors: ['#4facfe', '#f5576c', '#f6d365'] },
+        textinfo: 'label+value',
+        hole: 0.45
+    }], {
+        margin: { t: 10, r: 10, b: 10, l: 10 },
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        height: 280
+    }, { responsive: true, displayModeBar: false });
 </script>
 {% endblock %}

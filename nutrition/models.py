@@ -155,6 +155,25 @@ class UserProfile(models.Model):
             return 'Избыточный вес'
         return 'Ожирение'
 
+    def calculate_bmi(self):
+        if not self.height or not self.weight:
+            return 0
+        height_m = self.height / 100
+        return round(self.weight / (height_m ** 2), 1)
+
+    def get_bmi_category(self):
+        bmi = self.calculate_bmi()
+        if bmi == 0:
+            return "Не указано"
+        if bmi < 18.5:
+            return "Недостаточный вес"
+        elif bmi < 25:
+            return "Норма"
+        elif bmi < 30:
+            return "Избыточный вес"
+        else:
+            return "Ожирение"
+
     def __str__(self):
         return f'Профиль {self.user.username}'
 
