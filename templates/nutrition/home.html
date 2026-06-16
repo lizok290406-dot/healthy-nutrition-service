@@ -1,103 +1,59 @@
 {% extends 'base.html' %}
-
-{% block title %}NutriTrack — Умный дневник питания{% endblock %}
+{% block title %}NutriTrack — здоровое питание для студентов{% endblock %}
 
 {% block content %}
 
-<!-- HERO SECTION -->
-<section class="hero-section py-5" style="
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
-    position: relative;
-    overflow: hidden;
-    min-height: 88vh;
-    display: flex;
-    align-items: center;
-">
-    <!-- Декоративные круги -->
-    <div style="
-        position: absolute; width: 500px; height: 500px;
-        border-radius: 50%; background: rgba(255,255,255,0.05);
-        top: -100px; right: -100px;
-    "></div>
-    <div style="
-        position: absolute; width: 300px; height: 300px;
-        border-radius: 50%; background: rgba(255,255,255,0.07);
-        bottom: -50px; left: -50px;
-    "></div>
+<!-- HERO -->
+<section class="py-5" style="
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 55%, #f093fb 100%);
+    position: relative; overflow: hidden;">
+    <div style="position:absolute; width:420px; height:420px; border-radius:50%;
+                background:rgba(255,255,255,0.06); top:-120px; right:-100px;"></div>
+    <div style="position:absolute; width:260px; height:260px; border-radius:50%;
+                background:rgba(255,255,255,0.07); bottom:-80px; left:-60px;"></div>
 
-    <div class="container position-relative">
-        <div class="row align-items-center g-5">
-            <div class="col-lg-6 animate-fade-in">
-                <div class="mb-3">
-                    <span class="badge rounded-pill px-3 py-2"
-                          style="background: rgba(255,255,255,0.2); color: white; font-size: 0.9rem;">
-                        🔬 Научный подход к питанию
-                    </span>
-                </div>
-                <h1 class="display-4 fw-900 text-white mb-4" style="line-height: 1.15; font-weight: 900;">
-                    Питайся осознанно.<br>
-                    <span style="
-                        background: linear-gradient(90deg, #ffecd2, #fcb69f);
-                        -webkit-background-clip: text;
-                        -webkit-text-fill-color: transparent;
-                        background-clip: text;
-                    ">Живи лучше.</span>
-                </h1>
-                <p class="lead text-white-75 mb-4" style="font-size: 1.1rem; opacity: 0.9;">
-                    Отслеживай калории и нутриенты, анализируй прогресс,<br>
-                    достигай своих целей с помощью умной аналитики.
-                </p>
-
-                <div class="d-flex flex-wrap gap-3 mb-4">
-                    {% if user.is_authenticated %}
-                    <a href="{% url 'nutrition:dashboard' %}"
-                       class="btn btn-light btn-lg px-4 fw-700"
-                       style="border-radius: 12px; color: #667eea; font-weight: 700;">
-                        <i class="bi bi-speedometer2 me-2"></i>Мой дневник
-                    </a>
-                    <a href="{% url 'nutrition:add_meal' %}"
-                       class="btn btn-outline-light btn-lg px-4"
-                       style="border-radius: 12px;">
-                        <i class="bi bi-plus-lg me-2"></i>Добавить еду
-                    </a>
-                    {% else %}
-                    <a href="{% url 'users:register' %}"
-                       class="btn btn-light btn-lg px-4 fw-700"
-                       style="border-radius: 12px; color: #667eea; font-weight: 700;">
-                        <i class="bi bi-rocket me-2"></i>Начать бесплатно
-                    </a>
-                    <a href="{% url 'nutrition:food_catalog' %}"
-                       class="btn btn-outline-light btn-lg px-4"
-                       style="border-radius: 12px;">
-                        <i class="bi bi-grid me-2"></i>Каталог продуктов
-                    </a>
-                    {% endif %}
-                </div>
-
-                <!-- Статистика -->
-                <div class="d-flex gap-4 pt-2">
-                    <div class="text-center">
-                        <div class="h4 fw-800 text-white mb-0">{{ stats.total_foods }}+</div>
-                        <div class="small" style="color: rgba(255,255,255,0.7);">продуктов</div>
-                    </div>
-                    <div class="text-center">
-                        <div class="h4 fw-800 text-white mb-0">{{ stats.total_categories }}</div>
-                        <div class="small" style="color: rgba(255,255,255,0.7);">категорий</div>
-                    </div>
-                    <div class="text-center">
-                        <div class="h4 fw-800 text-white mb-0">{{ stats.total_users }}+</div>
-                        <div class="small" style="color: rgba(255,255,255,0.7);">пользователей</div>
-                    </div>
-                </div>
+    <div class="container position-relative py-4">
+        <div class="col-lg-8 animate-fade-in">
+            <h1 class="display-4 text-white mb-4" style="line-height:1.15; font-weight:800;">
+                Питайся осознанно.<br>
+                <span style="background:linear-gradient(90deg,#ffecd2,#fcb69f);
+                    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+                    background-clip:text;">Живи лучше.</span>
+            </h1>
+            <p class="lead text-white mb-4" style="font-size:1.1rem; opacity:0.92; max-width:560px;">
+                Подбирай здоровое питание по бюджету, считай КБЖУ и стоимость рациона,
+                сравнивай с личной нормой — всё в одном сервисе для студентов.
+            </p>
+            <div class="d-flex flex-wrap gap-3">
+                {% if user.is_authenticated %}
+                <a href="{% url 'nutrition:dashboard' %}" class="btn btn-light btn-lg px-4 fw-bold"
+                   style="border-radius:12px; color:#667eea;">
+                    <i class="bi bi-speedometer2 me-2"></i>Мой дневник
+                </a>
+                <a href="{% url 'nutrition:recommend' %}" class="btn btn-outline-light btn-lg px-4"
+                   style="border-radius:12px;">
+                    <i class="bi bi-stars me-2"></i>Подбор продуктов
+                </a>
+                {% else %}
+                <a href="{% url 'users:register' %}" class="btn btn-light btn-lg px-4 fw-bold"
+                   style="border-radius:12px; color:#667eea;">
+                    <i class="bi bi-rocket me-2"></i>Начать бесплатно
+                </a>
+                <a href="{% url 'nutrition:food_catalog' %}" class="btn btn-outline-light btn-lg px-4"
+                   style="border-radius:12px;">
+                    <i class="bi bi-grid me-2"></i>Каталог продуктов
+                </a>
+                {% endif %}
             </div>
+        </div>
+    </div>
+</section>
 
-            
-
-<!-- FEATURES -->
-<section class="py-5 mt-2">
+<!-- КАК ЭТО РАБОТАЕТ -->
+<section class="py-5" style="background:white;">
     <div class="container">
         <div class="text-center mb-5">
-            <h2 class="section-title mb-2">Как это работает?</h2>
+            <h2 class="section-title mb-2">Как это работает</h2>
             <p class="text-muted">Три простых шага к осознанному питанию</p>
         </div>
         <div class="row g-4">
@@ -108,10 +64,10 @@
                          background:linear-gradient(135deg,#667eea,#764ba2);">
                         <i class="bi bi-search text-white fs-3"></i>
                     </div>
-                    <h5 class="fw-700">1. Найди продукт</h5>
+                    <h5 class="fw-bold">1. Найди продукт</h5>
                     <p class="text-muted small mb-0">
-                        Ищи в нашей базе из {{ stats.total_foods }}+ продуктов
-                        или получи данные через внешний API
+                        Ищи в каталоге или получай данные о продуктах
+                        через внешний API Open Food Facts.
                     </p>
                 </div>
             </div>
@@ -122,10 +78,10 @@
                          background:linear-gradient(135deg,#f6d365,#fda085);">
                         <i class="bi bi-pencil-square text-white fs-3"></i>
                     </div>
-                    <h5 class="fw-700">2. Запиши приём пищи</h5>
+                    <h5 class="fw-bold">2. Запиши приём пищи</h5>
                     <p class="text-muted small mb-0">
-                        Указывай тип приёма пищи и количество.
-                        Система автоматически посчитает все нутриенты
+                        Указывай продукт и количество — система сама посчитает
+                        КБЖУ и стоимость.
                     </p>
                 </div>
             </div>
@@ -136,10 +92,10 @@
                          background:linear-gradient(135deg,#56ab2f,#a8e063);">
                         <i class="bi bi-graph-up-arrow text-white fs-3"></i>
                     </div>
-                    <h5 class="fw-700">3. Анализируй прогресс</h5>
+                    <h5 class="fw-bold">3. Анализируй</h5>
                     <p class="text-muted small mb-0">
-                        Интерактивные графики Plotly и аналитика Pandas
-                        покажут твою динамику за 30 дней
+                        Графики Plotly и сравнение с личной нормой КБЖУ
+                        покажут, как идут дела.
                     </p>
                 </div>
             </div>
@@ -147,87 +103,16 @@
     </div>
 </section>
 
-<!-- CATEGORIES -->
-<section class="py-5" style="background: white;">
-    <div class="container">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2 class="section-title mb-0">Категории продуктов</h2>
-            <a href="{% url 'nutrition:food_catalog' %}" class="btn btn-outline-primary">
-                Все продукты <i class="bi bi-arrow-right ms-1"></i>
-            </a>
-        </div>
-        <div class="row g-3">
-            {% for category in categories %}
-            <div class="col-6 col-md-4 col-lg-2">
-                <a href="{% url 'nutrition:food_catalog' %}?category={{ category.pk }}"
-                   class="text-decoration-none">
-                    <div class="card text-center p-3 h-100">
-                        <div class="mb-2" style="font-size: 2.5rem;">{{ category.icon }}</div>
-                        <div class="fw-600 small">{{ category.name }}</div>
-                        <div class="text-muted" style="font-size: 0.75rem;">
-                            {{ category.items_count }} продуктов
-                        </div>
-                    </div>
-                </a>
-            </div>
-            {% empty %}
-            <p class="text-muted">Категории пока не добавлены.</p>
-            {% endfor %}
-        </div>
-    </div>
-</section>
-
-<!-- TOP PRODUCTS -->
-<section class="py-5">
-    <div class="container">
-        <div class="text-center mb-4">
-            <h2 class="section-title">🥗 Полезные продукты</h2>
-            <p class="text-muted">Продукты с наименьшей калорийностью</p>
-        </div>
-        <div class="row g-4">
-            {% for food in top_foods %}
-            <div class="col-6 col-md-3">
-                <a href="{% url 'nutrition:food_detail' food.pk %}" class="text-decoration-none">
-                    <div class="card food-card p-3 h-100">
-                        <div class="text-center mb-2" style="font-size: 2.5rem;">
-                            {{ food.category.icon }}
-                        </div>
-                        <h6 class="fw-700 text-dark mb-1">{{ food.name }}</h6>
-                        <small class="text-muted d-block mb-2">{{ food.category.name }}</small>
-                        <div class="d-flex align-items-center justify-content-between">
-                            <span class="fw-800" style="color: #667eea;">
-                                {{ food.calories }} ккал
-                            </span>
-                            <span class="badge rounded-pill
-                                {% if food.caloric_balance == 'low' %}badge-calories-low
-                                {% elif food.caloric_balance == 'medium' %}badge-calories-medium
-                                {% else %}badge-calories-high{% endif %}">
-                                {% if food.caloric_balance == 'low' %}Низко
-                                {% elif food.caloric_balance == 'medium' %}Средне
-                                {% else %}Высоко{% endif %}
-                            </span>
-                        </div>
-                    </div>
-                </a>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-</section>
-
 <!-- CTA -->
 {% if not user.is_authenticated %}
-<section class="py-5" style="
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-">
+<section class="py-5" style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);">
     <div class="container text-center py-3">
-        <h2 class="text-white fw-800 mb-3">Готов начать?</h2>
+        <h2 class="text-white fw-bold mb-3">Готов начать?</h2>
         <p class="text-white-50 mb-4">
-            Зарегистрируйся бесплатно и начни отслеживать своё питание уже сегодня
+            Зарегистрируйся бесплатно и начни следить за питанием уже сегодня.
         </p>
-        <a href="{% url 'users:register' %}"
-           class="btn btn-light btn-lg px-5 fw-700"
-           style="border-radius: 12px; color: #667eea;">
+        <a href="{% url 'users:register' %}" class="btn btn-light btn-lg px-5 fw-bold"
+           style="border-radius:12px; color:#667eea;">
             <i class="bi bi-person-plus me-2"></i>Создать аккаунт
         </a>
     </div>
