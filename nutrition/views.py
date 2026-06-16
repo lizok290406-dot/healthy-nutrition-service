@@ -13,7 +13,7 @@ from django.utils import timezone
 from .models import Product, Category, DiaryEntry, UserProfile, BudgetPlan
 from .forms import (
     DiaryEntryForm, BudgetForm, ProductSearchForm,
-    UserProfileForm, RegisterForm
+    UserProfileForm, RegisterForm, FoodItemForm
 )
 
 
@@ -102,16 +102,13 @@ def food_catalog(request):
     Поиск БЕЗ учёта регистра — icontains.
     яблоко = Яблоко = ЯБЛОКО = ЯбЛоКо
     """
-    # Берём параметры прямо из GET запроса
     query = request.GET.get('q', '').strip()
     selected_category = request.GET.get('category', '').strip()
     max_calories = request.GET.get('max_calories', '').strip()
     sort_by = request.GET.get('sort_by', '').strip()
 
-    # Начинаем с ВСЕХ продуктов
     products = Product.objects.select_related('category').all()
 
-    # Применяем фильтры только если они заданы
     if query:
         products = products.filter(name__icontains=query)
 
@@ -139,7 +136,6 @@ def food_catalog(request):
     if sort_by in sort_map:
         products = products.order_by(sort_map[sort_by])
 
-    # Категории для фильтра и карточек
     all_categories = Category.objects.all()
 
     category_stats = Category.objects.annotate(
@@ -147,7 +143,6 @@ def food_catalog(request):
         avg_calories=Avg('products__calories')
     ).filter(count__gt=0)
 
-    # Добавляем icon = emoji для совместимости с шаблоном
     for cat in category_stats:
         cat.icon = cat.emoji
 
@@ -286,48 +281,26 @@ def delete_meal(request, pk):
 
 @login_required
 def add_food_item(request):
-    """Добавление нового продукта в каталог"""
-    categories = Category.objects.all()
-
+    """Добавление нового продукта в каталог через форму."""
     if request.method == 'POST':
-        name = request.POST.get('name', '').strip()
-        category_id = request.POST.get('category', '')
-        calories = request.POST.get('calories', 0)
-        protein = request.POST.get('protein', 0)
-        carbs = request.POST.get('carbs', 0)
-        fat = request.POST.get('fat', 0)
-        emoji = request.POST.get('emoji', '🍽️')
-        price = request.POST.get('price_per_100g', None)
-
-        if name and category_id and calories:
-            try:
-                category = Category.objects.get(id=category_id)
-                Product.objects.create(
-                    name=name,
-                    category=category,
-                    calories=float(calories),
-                    protein=float(protein) if protein else 0,
-                    carbs=float(carbs) if carbs else 0,
-                    fat=float(fat) if fat else 0,
-                    emoji=emoji,
-                    price_per_100g=float(price) if price else None,
-                )
-                messages.success(
-                    request,
-                    f'Продукт "{name}" добавлен в каталог!'
-                )
-                return redirect('nutrition:food_catalog')
-            except (ValueError, Category.DoesNotExist):
-                messages.error(request, 'Ошибка! Проверьте данные.')
-        else:
-            messages.error(
+        form = FoodItemForm(request.POST)
+        if form.is_valid():
+            product = form.save()
+            messages.success(
                 request,
-                'Заполните обязательные поля: название, категория, калории'
+                f'Продукт «{product.name}» добавлен в каталог!'
             )
+            return redirect('nutrition:food_catalog')
+        messages.error(request, 'Проверьте правильность заполнения формы.')
+    else:
+        form = FoodItemForm(initial={
+            'protein': 0,
+            'carbs': 0,
+            'fat': 0,
+            'emoji': '🍽️',
+        })
 
-    return render(request, 'nutrition/add_food_item.html', {
-        'categories': categories
-    })
+    return render(request, 'nutrition/add_food_item.html', {'form': form})
 
 
 @login_required
