@@ -57,44 +57,59 @@ class LoginForm(AuthenticationForm):
 
 
 class ProfileUpdateForm(forms.ModelForm):
-    """Форма обновления профиля"""
     class Meta:
         model = UserProfile
         fields = [
-            'age', 'gender', 'weight', 'height',
-            'activity_level', 'goal', 'avatar'
+            'age',
+            'gender',
+            'weight',
+            'height',
+            'activity_level',
+            'goal',
+            'daily_calorie_goal',
         ]
+
+        labels = {
+            'age': 'Возраст',
+            'gender': 'Пол',
+            'weight': 'Вес',
+            'height': 'Рост',
+            'activity_level': 'Уровень активности',
+            'goal': 'Цель',
+            'daily_calorie_goal': 'Дневная норма калорий',
+        }
+
         widgets = {
             'age': forms.NumberInput(attrs={
                 'class': 'form-control',
-                'min': 10,
-                'max': 120,
-                'placeholder': '25'
+                'min': '1',
+                'placeholder': 'Возраст'
             }),
-            'gender': forms.Select(attrs={'class': 'form-select'}),
+            'gender': forms.Select(attrs={
+                'class': 'form-control'
+            }),
             'weight': forms.NumberInput(attrs={
                 'class': 'form-control',
                 'step': '0.1',
-                'min': 20,
-                'max': 300,
-                'placeholder': '70.0'
+                'min': '1',
+                'placeholder': 'Вес в кг'
             }),
             'height': forms.NumberInput(attrs={
                 'class': 'form-control',
                 'step': '0.1',
-                'min': 100,
-                'max': 250,
-                'placeholder': '170.0'
+                'min': '1',
+                'placeholder': 'Рост в см'
             }),
-            'activity_level': forms.Select(attrs={'class': 'form-select'}),
-            'goal': forms.Select(attrs={'class': 'form-select'}),
-        }
-        labels = {
-            'age': 'Возраст',
-            'gender': 'Пол',
-            'weight': 'Вес (кг)',
-            'height': 'Рост (см)',
-            'activity_level': 'Уровень активности',
-            'goal': 'Ваша цель',
-            'avatar': 'Фото профиля',
+            'activity_level': forms.Select(attrs={
+                'class': 'form-control'
+            }),
+            'goal': forms.Select(attrs={
+                'class': 'form-control'
+            }),
+            'daily_calorie_goal': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'step': '1',
+                'min': '0',
+                'placeholder': 'Например, 2000'
+            }),
         }

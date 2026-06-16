@@ -1,42 +1,42 @@
 from django.contrib import admin
-from .models import FoodCategory, FoodItem, MealLog, WeightLog, UserProfile
+from .models import Category, Product, DiaryEntry, UserProfile, BudgetPlan
 
 
-@admin.register(FoodCategory)
-class FoodCategoryAdmin(admin.ModelAdmin):
-    list_display = ['name', 'icon', 'color']
+@admin.register(Category)
+class CategoryAdmin(admin.ModelAdmin):
+    list_display = ['name', 'emoji', 'description']
     search_fields = ['name']
 
 
-@admin.register(FoodItem)
-class FoodItemAdmin(admin.ModelAdmin):
-    list_display = ['name', 'category', 'calories', 'proteins',
-                    'carbohydrates', 'fats', 'is_api_data']
-    list_filter = ['category', 'is_api_data']
-    search_fields = ['name', 'description']
-    list_editable = ['calories']
-    ordering = ['name']
+@admin.register(Product)
+class ProductAdmin(admin.ModelAdmin):
+    list_display = [
+        'name', 'category', 'calories',
+        'protein', 'carbs', 'fat', 'price_per_100g'
+    ]
+    search_fields = ['name']
+    list_filter = ['category']
+    list_editable = ['price_per_100g']
 
 
-@admin.register(MealLog)
-class MealLogAdmin(admin.ModelAdmin):
-    list_display = ['user', 'food_item', 'meal_type', 'amount', 'date']
-    list_filter = ['meal_type', 'date', 'user']
-    search_fields = ['user__username', 'food_item__name']
-    date_hierarchy = 'date'
-
-
-@admin.register(WeightLog)
-class WeightLogAdmin(admin.ModelAdmin):
-    list_display = ['user', 'weight', 'date']
-    list_filter = ['user']
-    search_fields = ['user__username']
-    date_hierarchy = 'date'
+@admin.register(DiaryEntry)
+class DiaryEntryAdmin(admin.ModelAdmin):
+    list_display = ['user', 'product', 'date', 'meal_type', 'amount_grams']
+    search_fields = ['user__username', 'product__name']
+    list_filter = ['meal_type', 'date']
 
 
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):
-    list_display = ['user', 'age', 'gender', 'weight', 'height',
-                    'activity_level', 'goal']
-    list_filter = ['gender', 'activity_level', 'goal']
-    search_fields = ['user__username', 'user__email']
+    list_display = [
+        'user', 'age', 'weight', 'height',
+        'gender', 'goal', 'activity_level', 'daily_calorie_goal'
+    ]
+    search_fields = ['user__username']
+
+
+@admin.register(BudgetPlan)
+class BudgetPlanAdmin(admin.ModelAdmin):
+    list_display = ['user', 'date', 'daily_budget']
+    search_fields = ['user__username']
+    list_filter = ['date']

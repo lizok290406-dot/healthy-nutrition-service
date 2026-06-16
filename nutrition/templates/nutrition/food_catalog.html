@@ -1,6 +1,48 @@
 {% extends 'base.html' %}
 {% block title %}Каталог продуктов — NutriTrack{% endblock %}
 
+{% block extra_css %}
+<style>
+/* ВСЕ КАРТОЧКИ КАТЕГОРИЙ ОДНОГО РАЗМЕРА */
+.cat-card {
+    background: #fff;
+    border: 2px solid #e9ecef;
+    border-radius: 16px;
+    height: 130px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    text-decoration: none;
+}
+.cat-card:hover {
+    border-color: #667eea;
+    box-shadow: 0 6px 20px rgba(102,126,234,0.2);
+    transform: translateY(-3px);
+}
+.cat-card .cat-emoji { font-size: 1.8rem; line-height: 1; }
+.cat-card .cat-name {
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: #333;
+    text-align: center;
+    padding: 0 8px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    width: 100%;
+}
+.cat-card .cat-meta {
+    font-size: 0.72rem;
+    color: #6c757d;
+    text-align: center;
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container py-4">
 
@@ -19,85 +61,111 @@
         {% endif %}
     </div>
 
-    <!-- API ПОИСК -->
-    <div class="card mb-4" style="border:2px solid rgba(102,126,234,0.2);">
-        <div class="card-body p-4">
-            <h5 class="fw-700 mb-1">
-                <i class="bi bi-lightning-charge me-2" style="color:#667eea;"></i>
-                Быстрый поиск (API)
-            </h5>
-            <p class="text-muted small mb-3">
-                Получай данные о продуктах напрямую из базы нутриентов
-            </p>
-            <div class="search-box">
-                <div class="input-group">
-                    <span class="input-group-text bg-white border-end-0"
-                          style="border-radius:10px 0 0 10px;">
-                        <i class="bi bi-search text-muted"></i>
-                    </span>
-                    <input type="text" id="apiSearchInput"
-                           class="form-control border-start-0 ps-0"
-                           placeholder="Введите название продукта..."
-                           style="border-radius:0 10px 10px 0;">
-                    <button class="btn btn-primary ms-2"
-                            onclick="searchFoodAPI()">
-                        <i class="bi bi-search me-1"></i>Найти
-                    </button>
-                </div>
-                <div id="apiSearchResults" class="search-results"></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ФИЛЬТРЫ -->
+    <!-- ФИЛЬТРЫ — простые input без форм Django -->
     <div class="card mb-4">
         <div class="card-body p-4">
-            <form method="get">
+            <form method="get" action="{% url 'nutrition:food_catalog' %}">
                 <div class="row g-3 align-items-end">
+
                     <div class="col-md-4">
-                        <label class="form-label fw-600">Поиск:</label>
-                        {{ form.query }}
+                        <label class="form-label fw-bold small">
+                            Поиск продукта:
+                        </label>
+                        <input type="text"
+                               name="q"
+                               value="{{ query }}"
+                               class="form-control"
+                               placeholder="яблоко, курица..."
+                               autocomplete="off">
                     </div>
-                    <div class="col-md-2">
-                        <label class="form-label fw-600">Категория:</label>
-                        {{ form.category }}
+
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold small">
+                            Категория:
+                        </label>
+                        <select name="category" class="form-select">
+                            <option value="">Все категории</option>
+                            {% for cat in all_categories %}
+                            <option value="{{ cat.id }}"
+                                {% if selected_category == cat.id|stringformat:"s" %}
+                                    selected
+                                {% endif %}>
+                                {{ cat.emoji }} {{ cat.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
                     </div>
+
                     <div class="col-md-2">
-                        <label class="form-label fw-600">Макс. калорий:</label>
-                        {{ form.max_calories }}
+                        <label class="form-label fw-bold small">
+                            Макс. калорий:
+                        </label>
+                        <input type="number"
+                               name="max_calories"
+                               value="{{ max_calories }}"
+                               class="form-control"
+                               placeholder="500"
+                               min="0">
                     </div>
+
                     <div class="col-md-2">
-                        <label class="form-label fw-600">Сортировка:</label>
-                        {{ form.sort_by }}
+                        <label class="form-label fw-bold small">
+                            Сортировка:
+                        </label>
+                        <select name="sort_by" class="form-select">
+                            <option value="">-- Сортировка</option>
+                            <option value="name"
+                                {% if sort_by == 'name' %}selected{% endif %}>
+                                По названию А-Я
+                            </option>
+                            <option value="calories_asc"
+                                {% if sort_by == 'calories_asc' %}selected{% endif %}>
+                                Калории ↑
+                            </option>
+                            <option value="calories_desc"
+                                {% if sort_by == 'calories_desc' %}selected{% endif %}>
+                                Калории ↓
+                            </option>
+                        </select>
                     </div>
-                    <div class="col-md-2">
+
+                    <div class="col-md-1">
                         <button type="submit" class="btn btn-primary w-100">
-                            <i class="bi bi-filter me-1"></i>Применить
+                            <i class="bi bi-search"></i>
                         </button>
                     </div>
+
                 </div>
+
+                {% if query %}
+                <div class="mt-3">
+                    <span class="badge rounded-3 px-3 py-2"
+                          style="background:#f0eeff;color:#667eea;">
+                        Поиск: "{{ query }}"
+                        <a href="{% url 'nutrition:food_catalog' %}"
+                           class="ms-2 text-decoration-none"
+                           style="color:#667eea;">✕ сбросить</a>
+                    </span>
+                </div>
+                {% endif %}
             </form>
         </div>
     </div>
 
-    <!-- СТАТИСТИКА КАТЕГОРИЙ -->
+    <!-- КАРТОЧКИ КАТЕГОРИЙ — ВСЕ ОДНОГО РАЗМЕРА -->
     {% if category_stats %}
     <div class="row g-3 mb-4">
         {% for cat in category_stats %}
-        <div class="col-6 col-md-3">
-            <a href="?category={{ cat.pk }}" class="text-decoration-none">
-                <div class="card p-3 text-center">
-                    <div style="font-size:2rem;">{{ cat.icon }}</div>
-                    <div class="fw-700 small mt-1">{{ cat.name }}</div>
-                    <div class="text-muted" style="font-size:0.75rem;">
-                        {{ cat.count }} продуктов
-                    </div>
-                    {% if cat.avg_calories %}
-                    <div class="fw-600 mt-1" style="color:#667eea;font-size:0.8rem;">
-                        ≈ {{ cat.avg_calories|floatformat:0 }} ккал
-                    </div>
-                    {% endif %}
+        <div class="col-6 col-md-4 col-lg-2">
+            <a href="?category={{ cat.pk }}" class="cat-card d-block">
+                <div class="cat-emoji">{{ cat.icon }}</div>
+                <div class="cat-name">{{ cat.name }}</div>
+                <div class="cat-meta">{{ cat.count }} прод.</div>
+                {% if cat.avg_calories %}
+                <div class="cat-meta">
+                    ≈{{ cat.avg_calories|floatformat:0 }} ккал
                 </div>
+                {% endif %}
             </a>
         </div>
         {% endfor %}
@@ -105,129 +173,89 @@
     {% endif %}
 
     <!-- СПИСОК ПРОДУКТОВ -->
-    <div class="row g-4">
+    {% if foods %}
+    <div class="row g-3">
         {% for food in foods %}
         <div class="col-6 col-md-4 col-lg-3">
             <a href="{% url 'nutrition:food_detail' food.pk %}"
                class="text-decoration-none">
-                <div class="card food-card h-100 p-3">
-
-                    <!-- Смайлик категории -->
+                <div class="card h-100 p-3 food-card">
                     <div class="text-center mb-2"
-                         style="font-size:2.5rem; line-height:1.2;">
-                        {{ food.category.icon }}
+                         style="font-size:2.5rem;line-height:1.2;">
+                        {{ food.emoji }}
                     </div>
-
-                    <h6 class="fw-700 text-dark mb-1 text-center">
+                    <h6 class="fw-bold text-dark mb-1 text-center">
                         {{ food.name }}
                     </h6>
                     <small class="text-muted d-block mb-2 text-center">
                         {{ food.category.name }}
                     </small>
-
                     <div class="mt-auto">
                         <div class="d-flex justify-content-between
                                     align-items-center mb-2">
-                            <span class="fw-800"
-                                  style="color:#f5576c; font-size:1.1rem;">
+                            <span class="fw-bold"
+                                  style="color:#f5576c;font-size:1rem;">
                                 {{ food.calories }} ккал
                             </span>
-                            <span class="badge rounded-pill
-                                {% if food.caloric_balance == 'low' %}
-                                    badge-calories-low
-                                {% elif food.caloric_balance == 'medium' %}
-                                    badge-calories-medium
-                                {% else %}
-                                    badge-calories-high
-                                {% endif %}">
+                            <span class="badge"
+                                  style="background:#e9ecef;
+                                         color:#666;font-size:0.7rem;">
                                 /100г
                             </span>
                         </div>
                         <div class="d-flex flex-wrap gap-1">
                             <span class="nutrient-pill pill-protein">
-                                Б {{ food.proteins }}г
+                                Б {{ food.protein }}г
                             </span>
                             <span class="nutrient-pill pill-carbs">
-                                У {{ food.carbohydrates }}г
+                                У {{ food.carbs }}г
                             </span>
                             <span class="nutrient-pill pill-fat">
-                                Ж {{ food.fats }}г
+                                Ж {{ food.fat }}г
                             </span>
                         </div>
+                        {% if food.price_per_100g %}
+                        <div class="mt-2 text-success small fw-bold">
+                            💰 {{ food.price_per_100g }} ₽/100г
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
             </a>
         </div>
-        {% empty %}
-        <div class="col-12 text-center py-5">
-            <i class="bi bi-search"
-               style="font-size:4rem; color:#dee2e6;"></i>
-            <h4 class="fw-700 mt-3">Ничего не найдено</h4>
-            <p class="text-muted">Попробуйте изменить критерии поиска</p>
-        </div>
         {% endfor %}
     </div>
 
+    {% else %}
+    <!-- НИЧЕГО НЕ НАЙДЕНО -->
+    <div class="text-center py-5">
+        <div style="font-size:5rem;">🔍</div>
+        <h4 class="fw-bold mt-3 text-muted">Ничего не найдено</h4>
+        {% if query %}
+        <p class="text-muted">
+            По запросу <strong>"{{ query }}"</strong> ничего нет.<br>
+            Попробуйте другое написание.
+        </p>
+        {% else %}
+        <p class="text-muted">
+            В базе данных нет продуктов.<br>
+            Добавьте первый продукт!
+        </p>
+        {% endif %}
+        <div class="d-flex gap-2 justify-content-center mt-3">
+            <a href="{% url 'nutrition:food_catalog' %}"
+               class="btn btn-outline-primary">
+                Сбросить фильтры
+            </a>
+            {% if user.is_authenticated %}
+            <a href="{% url 'nutrition:add_food_item' %}"
+               class="btn btn-primary">
+                + Добавить продукт
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
 </div>
-{% endblock %}
-
-{% block extra_js %}
-<script>
-function searchFoodAPI() {
-    const query = document.getElementById('apiSearchInput').value.trim();
-    if (query.length < 2) return;
-
-    const resultsDiv = document.getElementById('apiSearchResults');
-    resultsDiv.innerHTML = `
-        <div class="search-result-item text-muted">
-            <i class="bi bi-hourglass-split me-2"></i>Поиск...
-        </div>`;
-    resultsDiv.classList.add('show');
-
-    fetch(`/api/search-food/?q=${encodeURIComponent(query)}`)
-        .then(r => r.json())
-        .then(data => {
-            if (!data.results || data.results.length === 0) {
-                resultsDiv.innerHTML = `
-                    <div class="search-result-item text-muted">
-                        Ничего не найдено
-                    </div>`;
-                return;
-            }
-            const source = data.source === 'api'
-                ? '<span class="badge bg-success ms-2">API</span>'
-                : '<span class="badge bg-secondary ms-2">Demo</span>';
-
-            resultsDiv.innerHTML = data.results.map(item => `
-                <div class="search-result-item">
-                    <div>
-                        <strong>${item.name}</strong>
-                        ${source}
-                    </div>
-                    <div class="text-muted small">
-                        ${item.calories} ккал/100г
-                    </div>
-                </div>
-            `).join('');
-        })
-        .catch(() => {
-            resultsDiv.innerHTML = `
-                <div class="search-result-item text-danger">
-                    Ошибка поиска
-                </div>`;
-        });
-}
-
-document.getElementById('apiSearchInput')
-    .addEventListener('keypress', function(e) {
-    if (e.key === 'Enter') searchFoodAPI();
-});
-
-document.addEventListener('click', function(e) {
-    const results = document.getElementById('apiSearchResults');
-    if (!e.target.closest('.search-box')) {
-        results.classList.remove('show');
-    }
-});
-</script>
 {% endblock %}

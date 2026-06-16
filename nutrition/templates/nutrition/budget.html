@@ -1,0 +1,286 @@
+{% extends 'base.html' %}
+
+{% block title %}Бюджет питания — NutriTrack{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+    <!-- Заголовок -->
+    <div class="mb-4">
+        <h2 class="fw-bold" style="color: #6c63ff;">
+            💰 Бюджет на питание
+        </h2>
+        <p class="text-muted">
+            Следите за расходами на еду и планируйте питание экономно
+        </p>
+    </div>
+
+    <div class="row g-4">
+
+        <!-- Левая колонка: форма установки бюджета -->
+        <div class="col-lg-5">
+            <div class="card shadow-sm border-0 rounded-4">
+                <div class="card-body p-4">
+                    <h5 class="fw-bold mb-1">📝 Установить бюджет</h5>
+                    <p class="text-muted small mb-4">
+                        Укажите дату и сумму, которую готовы потратить
+                    </p>
+
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Дата</label>
+                            {{ form.date }}
+                            {% if form.date.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ form.date.errors }}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold">
+                                Дневной бюджет (₽)
+                            </label>
+                            {{ form.daily_budget }}
+                            {% if form.daily_budget.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ form.daily_budget.errors }}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">
+                                Средний расход на питание в России — 300–600 ₽/день
+                            </div>
+                        </div>
+
+                        <button type="submit"
+                                class="btn w-100 rounded-3 fw-semibold text-white"
+                                style="background: linear-gradient(135deg, #6c63ff, #a855f7);">
+                            💾 Сохранить бюджет
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Подсказки -->
+            <div class="card border-0 rounded-4 mt-3"
+                 style="background: linear-gradient(135deg, #f0f4ff, #faf0ff);">
+                <div class="card-body p-4">
+                    <h6 class="fw-bold mb-3">💡 Как работает бюджет</h6>
+                    <ul class="list-unstyled mb-0 small text-muted">
+                        <li class="mb-2">
+                            ✅ Добавляйте продукты в дневник
+                        </li>
+                        <li class="mb-2">
+                            ✅ У продуктов должна быть указана цена
+                        </li>
+                        <li class="mb-2">
+                            ✅ Система автоматически считает расходы
+                        </li>
+                        <li>
+                            ✅ Смотрите историю за 7 дней
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Правая колонка: статус и история -->
+        <div class="col-lg-7">
+
+            <!-- Статус бюджета на сегодня -->
+            {% if budget_plan %}
+                {% with spent=budget_plan.get_spent remaining=budget_plan.get_remaining percent=budget_plan.get_percent_spent within=budget_plan.is_within_budget %}
+                
+                <div class="card shadow-sm border-0 rounded-4 mb-4">
+                    <!-- Цветная полоска сверху -->
+                    <div class="rounded-top-4"
+                         style="height: 6px; background: {% if within %}#28a745{% else %}#dc3545{% endif %};"></div>
+                    
+                    <div class="card-body p-4">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <div>
+                                <h5 class="fw-bold mb-0">
+                                    📊 Сегодня, {{ today|date:"d F Y" }}
+                                </h5>
+                                <small class="text-muted">
+                                    Бюджет: {{ budget_plan.daily_budget|floatformat:0 }} ₽
+                                </small>
+                            </div>
+                            {% if within %}
+                                <span class="badge fs-6 px-3 py-2 rounded-3"
+                                      style="background: #d4edda; color: #155724;">
+                                    ✅ В бюджете
+                                </span>
+                            {% else %}
+                                <span class="badge fs-6 px-3 py-2 rounded-3"
+                                      style="background: #f8d7da; color: #721c24;">
+                                    ❌ Превышен
+                                </span>
+                            {% endif %}
+                        </div>
+
+                        <!-- Три карточки: бюджет, потрачено, осталось -->
+                        <div class="row g-3 mb-4">
+                            <div class="col-4">
+                                <div class="text-center p-3 rounded-3"
+                                     style="background: #f8f9fa;">
+                                    <div class="fw-bold fs-4 text-primary">
+                                        {{ budget_plan.daily_budget|floatformat:0 }} ₽
+                                    </div>
+                                    <div class="text-muted small">Бюджет</div>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="text-center p-3 rounded-3"
+                                     style="background: #f8f9fa;">
+                                    <div class="fw-bold fs-4
+                                        {% if within %}text-success{% else %}text-danger{% endif %}">
+                                        {{ spent|floatformat:0 }} ₽
+                                    </div>
+                                    <div class="text-muted small">Потрачено</div>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="text-center p-3 rounded-3"
+                                     style="background: #f8f9fa;">
+                                    <div class="fw-bold fs-4
+                                        {% if remaining >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                        {% if remaining >= 0 %}
+                                            {{ remaining|floatformat:0 }} ₽
+                                        {% else %}
+                                            -{{ remaining|floatformat:0|slice:"1:" }} ₽
+                                        {% endif %}
+                                    </div>
+                                    <div class="text-muted small">
+                                        {% if remaining >= 0 %}Осталось{% else %}Перерасход{% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Прогресс-бар -->
+                        <div class="d-flex justify-content-between mb-2">
+                            <small class="text-muted fw-semibold">
+                                Использовано бюджета
+                            </small>
+                            <small class="fw-bold">{{ percent }}%</small>
+                        </div>
+                        <div class="progress rounded-3 mb-3" style="height: 16px;">
+                            <div class="progress-bar rounded-3
+                                {% if within %}bg-success{% else %}bg-danger{% endif %}"
+                                 role="progressbar"
+                                 style="width: {{ percent }}%; transition: width 0.6s ease;">
+                            </div>
+                        </div>
+
+                        {% if not within %}
+                        <div class="alert alert-danger rounded-3 py-2 mb-0">
+                            <small>
+                                ⚠️ Вы превысили дневной бюджет!
+                                Потрачено на
+                                <strong>
+                                    {% widthratio spent budget_plan.daily_budget 100 %}%
+                                </strong>
+                                от запланированного.
+                            </small>
+                        </div>
+                        {% else %}
+                        <div class="alert alert-success rounded-3 py-2 mb-0">
+                            <small>
+                                🎉 Отлично! Вы укладываетесь в бюджет.
+                                Осталось <strong>{{ remaining|floatformat:0 }} ₽</strong>.
+                            </small>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                {% endwith %}
+            {% else %}
+                <!-- Бюджет не установлен -->
+                <div class="card shadow-sm border-0 rounded-4 mb-4">
+                    <div class="card-body p-5 text-center">
+                        <div class="display-3 mb-3">💸</div>
+                        <h5 class="fw-bold">Бюджет на сегодня не установлен</h5>
+                        <p class="text-muted">
+                            Заполните форму слева, чтобы начать 
+                            отслеживать расходы на питание
+                        </p>
+                    </div>
+                </div>
+            {% endif %}
+
+            <!-- История за 7 дней -->
+            <div class="card shadow-sm border-0 rounded-4">
+                <div class="card-body p-4">
+                    <h5 class="fw-bold mb-4">📅 История за 7 дней</h5>
+                    
+                    {% for day in week_budgets %}
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between 
+                                    align-items-center mb-1">
+                            <div>
+                                <span class="fw-semibold
+                                    {% if day.date == today %}text-primary{% endif %}">
+                                    {{ day.date|date:"d.m.Y" }}
+                                    {% if day.date == today %}
+                                        <span class="badge bg-primary ms-1 small">
+                                            сегодня
+                                        </span>
+                                    {% endif %}
+                                </span>
+                            </div>
+                            <div class="d-flex align-items-center gap-3">
+                                <small class="text-muted">
+                                    {{ day.spent|floatformat:0 }} /
+                                    {% if day.budget %}
+                                        {{ day.budget|floatformat:0 }} ₽
+                                    {% else %}
+                                        — ₽
+                                    {% endif %}
+                                </small>
+                                {% if day.within is None %}
+                                    <span class="badge bg-secondary">
+                                        Нет плана
+                                    </span>
+                                {% elif day.within %}
+                                    <span class="badge"
+                                          style="background:#d4edda;color:#155724;">
+                                        ✅ OK
+                                    </span>
+                                {% else %}
+                                    <span class="badge"
+                                          style="background:#f8d7da;color:#721c24;">
+                                        ❌ Превышен
+                                    </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        {% if day.budget %}
+                        <div class="progress rounded-3" style="height: 8px;">
+                            {% with pct=day.spent|floatformat:0 %}
+                            <div class="progress-bar rounded-3
+                                {% if day.within %}bg-success{% else %}bg-danger{% endif %}"
+                                 style="width: {% if day.budget %}{% widthratio day.spent day.budget 100 %}{% else %}0{% endif %}%;">
+                            </div>
+                            {% endwith %}
+                        </div>
+                        {% else %}
+                        <div class="progress rounded-3" style="height: 8px;">
+                            <div class="progress-bar bg-secondary rounded-3"
+                                 style="width: 0%;">
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}

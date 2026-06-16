@@ -56,14 +56,12 @@
         {% for cat in category_stats %}
         <div class="col-6 col-md-3">
             <a href="?category={{ cat.pk }}" class="text-decoration-none">
-                <div class="card p-3 text-center" style="height: 110px; display:flex; flex-direction:column; align-items:center; justify-content:center;">
-                    <div style="font-size:2rem;">{{ cat.icon }}</div>
-                    <div class="fw-700 small mt-1">{{ cat.name }}</div>
-                    <div class="text-muted" style="font-size:0.75rem;">
-                        {{ cat.count }} продуктов
-                    </div>
+                <div class="category-card">
+                    <div class="category-emoji">{{ cat.icon }}</div>
+                    <div class="category-name">{{ cat.name }}</div>
+                    <div class="category-meta">{{ cat.count }} продуктов</div>
                     {% if cat.avg_calories %}
-                    <div class="fw-600" style="color:#667eea; font-size:0.75rem;">
+                    <div class="category-meta">
                         ≈ {{ cat.avg_calories|floatformat:0 }} ккал
                     </div>
                     {% endif %}

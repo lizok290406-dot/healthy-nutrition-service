@@ -1,413 +1,462 @@
-import json
-from datetime import date, timedelta
+# nutrition/views.py
 
-import pandas as pd
-import plotly.graph_objects as go
 import requests
-from django.conf import settings
-from django.contrib import messages
-from django.contrib.auth.decorators import login_required
-from django.db.models import Avg, Count, F, Q, Sum
-from django.http import JsonResponse
-from django.shortcuts import get_object_or_404, redirect, render
-from plotly.utils import PlotlyJSONEncoder
+from datetime import timedelta
 
-from .forms import FoodItemForm, FoodSearchForm, MealLogForm, WeightLogForm
-from .models import FoodCategory, FoodItem, MealLog, UserProfile, WeightLog
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.db.models import Q, Count, Avg
+from django.http import JsonResponse
+from django.utils import timezone
+
+from .models import Product, Category, DiaryEntry, UserProfile, BudgetPlan
+from .forms import (
+    DiaryEntryForm, BudgetForm, ProductSearchForm,
+    UserProfileForm, RegisterForm
+)
 
 
 def home(request):
-    categories = FoodCategory.objects.annotate(
-        items_count=Count('food_items')
-    ).order_by('-items_count')[:6]
+    """Главная страница"""
+    today = timezone.now().date()
+    context = {'today': today}
 
-    top_foods = FoodItem.objects.select_related('category').order_by('calories')[:8]
+    if request.user.is_authenticated:
+        entries_today = DiaryEntry.objects.filter(
+            user=request.user,
+            date=today
+        ).select_related('product')
 
-    stats = {
-        'total_foods': FoodItem.objects.count(),
-        'total_categories': FoodCategory.objects.count(),
-        'total_users': UserProfile.objects.count(),
-    }
+        totals = {
+            'calories': sum(e.calories_consumed for e in entries_today),
+            'protein': sum(e.protein_consumed for e in entries_today),
+            'carbs': sum(e.carbs_consumed for e in entries_today),
+            'fat': sum(e.fat_consumed for e in entries_today),
+        }
 
-    context = {
-        'categories': categories,
-        'top_foods': top_foods,
-        'stats': stats,
-    }
+        daily_goal = 2000
+        try:
+            profile = request.user.profile
+            if profile.daily_calorie_goal:
+                daily_goal = profile.daily_calorie_goal
+        except UserProfile.DoesNotExist:
+            pass
+
+        calorie_percent = 0
+        if daily_goal > 0:
+            calorie_percent = min(
+                round(totals['calories'] / daily_goal * 100, 1), 100
+            )
+
+        bmi = None
+        bmi_category = ''
+        try:
+            prof = request.user.profile
+            if prof.weight and prof.height:
+                height_m = prof.height / 100
+                bmi = round(prof.weight / (height_m ** 2), 1)
+                if bmi < 18.5:
+                    bmi_category = 'Недостаточный вес'
+                elif bmi < 25:
+                    bmi_category = 'Нормальный вес'
+                elif bmi < 30:
+                    bmi_category = 'Избыточный вес'
+                else:
+                    bmi_category = 'Ожирение'
+        except UserProfile.DoesNotExist:
+            pass
+
+        chart_labels = []
+        chart_data = []
+        for i in range(6, -1, -1):
+            day = today - timedelta(days=i)
+            day_entries = DiaryEntry.objects.filter(
+                user=request.user, date=day
+            ).select_related('product')
+            day_calories = sum(e.calories_consumed for e in day_entries)
+            chart_labels.append(day.strftime('%d.%m'))
+            chart_data.append(round(day_calories, 1))
+
+        budget_plan = BudgetPlan.objects.filter(
+            user=request.user, date=today
+        ).first()
+
+        context.update({
+            'totals': totals,
+            'daily_goal': daily_goal,
+            'calorie_percent': calorie_percent,
+            'bmi': bmi,
+            'bmi_category': bmi_category,
+            'chart_labels': chart_labels,
+            'chart_data': chart_data,
+            'budget_plan': budget_plan,
+        })
+
     return render(request, 'nutrition/home.html', context)
+
+
+def food_catalog(request):
+    """
+    Каталог продуктов.
+    Поиск БЕЗ учёта регистра — icontains.
+    яблоко = Яблоко = ЯБЛОКО = ЯбЛоКо
+    """
+    # Берём параметры прямо из GET запроса
+    query = request.GET.get('q', '').strip()
+    selected_category = request.GET.get('category', '').strip()
+    max_calories = request.GET.get('max_calories', '').strip()
+    sort_by = request.GET.get('sort_by', '').strip()
+
+    # Начинаем с ВСЕХ продуктов
+    products = Product.objects.select_related('category').all()
+
+    # Применяем фильтры только если они заданы
+    if query:
+        products = products.filter(name__icontains=query)
+
+    if selected_category:
+        try:
+            products = products.filter(
+                category_id=int(selected_category)
+            )
+        except (ValueError, TypeError):
+            pass
+
+    if max_calories:
+        try:
+            products = products.filter(
+                calories__lte=float(max_calories)
+            )
+        except (ValueError, TypeError):
+            pass
+
+    sort_map = {
+        'name': 'name',
+        'calories_asc': 'calories',
+        'calories_desc': '-calories',
+    }
+    if sort_by in sort_map:
+        products = products.order_by(sort_map[sort_by])
+
+    # Категории для фильтра и карточек
+    all_categories = Category.objects.all()
+
+    category_stats = Category.objects.annotate(
+        count=Count('products'),
+        avg_calories=Avg('products__calories')
+    ).filter(count__gt=0)
+
+    # Добавляем icon = emoji для совместимости с шаблоном
+    for cat in category_stats:
+        cat.icon = cat.emoji
+
+    return render(request, 'nutrition/food_catalog.html', {
+        'foods': products,
+        'query': query,
+        'total_count': products.count(),
+        'category_stats': category_stats,
+        'all_categories': all_categories,
+        'selected_category': selected_category,
+        'max_calories': max_calories,
+        'sort_by': sort_by,
+    })
+
+
+def food_detail(request, pk):
+    """Страница отдельного продукта"""
+    food = get_object_or_404(Product, pk=pk)
+    return render(request, 'nutrition/food_detail.html', {'food': food})
 
 
 @login_required
 def dashboard(request):
-    today = date.today()
-    profile, _ = UserProfile.objects.get_or_create(user=request.user)
+    """Дневник питания"""
+    today = timezone.now().date()
 
-    today_logs = MealLog.objects.filter(
+    entries = DiaryEntry.objects.filter(
         user=request.user,
         date=today
-    ).select_related('food_item', 'food_item__category')
+    ).select_related('product', 'product__category')
 
-    daily_totals = today_logs.aggregate(
-        total_calories=Sum(F('food_item__calories') * F('amount') / 100),
-        total_proteins=Sum(F('food_item__proteins') * F('amount') / 100),
-        total_carbohydrates=Sum(F('food_item__carbohydrates') * F('amount') / 100),
-        total_fats=Sum(F('food_item__fats') * F('amount') / 100),
-    )
+    meals = {
+        'breakfast': {'name': 'Завтрак', 'emoji': '🌅', 'entries': []},
+        'lunch': {'name': 'Обед', 'emoji': '☀️', 'entries': []},
+        'dinner': {'name': 'Ужин', 'emoji': '🌙', 'entries': []},
+        'snack': {'name': 'Перекус', 'emoji': '🍎', 'entries': []},
+    }
+    for entry in entries:
+        if entry.meal_type in meals:
+            meals[entry.meal_type]['entries'].append(entry)
 
-    tdee = profile.calculate_tdee()
-    bmi = profile.calculate_bmi()
-    bmi_category = profile.get_bmi_category()
+    totals = {
+        'calories': sum(e.calories_consumed for e in entries),
+        'protein': sum(e.protein_consumed for e in entries),
+        'carbs': sum(e.carbs_consumed for e in entries),
+        'fat': sum(e.fat_consumed for e in entries),
+    }
 
-    calories_consumed = round(daily_totals['total_calories'] or 0, 1)
-    calories_progress = 0
-    if tdee and tdee > 0:
-        calories_progress = min(round((calories_consumed / tdee) * 100), 100)
+    daily_goal = 2000
+    try:
+        if request.user.profile.daily_calorie_goal:
+            daily_goal = request.user.profile.daily_calorie_goal
+    except UserProfile.DoesNotExist:
+        pass
 
-    calories_chart = _get_weekly_calories_chart(request.user)
+    calorie_percent = 0
+    if daily_goal > 0:
+        calorie_percent = min(
+            round(totals['calories'] / daily_goal * 100, 1), 100
+        )
 
-    context = {
-        'profile': profile,
-        'today_logs': today_logs,
-        'daily_totals': daily_totals,
-        'tdee': tdee,
+    budget_plan = BudgetPlan.objects.filter(
+        user=request.user, date=today
+    ).first()
+
+    chart_labels = []
+    chart_data = []
+    for i in range(6, -1, -1):
+        day = today - timedelta(days=i)
+        day_entries = DiaryEntry.objects.filter(
+            user=request.user, date=day
+        ).select_related('product')
+        day_calories = sum(e.calories_consumed for e in day_entries)
+        chart_labels.append(day.strftime('%d.%m'))
+        chart_data.append(round(day_calories, 1))
+
+    bmi = None
+    bmi_category = ''
+    try:
+        prof = request.user.profile
+        if prof.weight and prof.height:
+            height_m = prof.height / 100
+            bmi = round(prof.weight / (height_m ** 2), 1)
+            if bmi < 18.5:
+                bmi_category = 'Недостаточный вес'
+            elif bmi < 25:
+                bmi_category = 'Нормальный вес'
+            elif bmi < 30:
+                bmi_category = 'Избыточный вес'
+            else:
+                bmi_category = 'Ожирение'
+    except UserProfile.DoesNotExist:
+        pass
+
+    return render(request, 'nutrition/dashboard.html', {
+        'entries': entries,
+        'meals': meals,
+        'totals': totals,
+        'today': today,
+        'daily_goal': daily_goal,
+        'calorie_percent': calorie_percent,
+        'budget_plan': budget_plan,
+        'chart_labels': chart_labels,
+        'chart_data': chart_data,
         'bmi': bmi,
         'bmi_category': bmi_category,
-        'calories_consumed': calories_consumed,
-        'calories_progress': calories_progress,
-        'calories_chart': calories_chart,
-        'today': today,
-        'macros_chart': None,  # график пока убираем, чтобы ничего не ехало
-    }
-    return render(request, 'nutrition/dashboard.html', context)
-
-
-def _get_weekly_calories_chart(user):
-    today = date.today()
-    dates = [(today - timedelta(days=i)) for i in range(6, -1, -1)]
-
-    calories_data = []
-    for d in dates:
-        total = MealLog.objects.filter(
-            user=user,
-            date=d
-        ).aggregate(
-            total=Sum(F('food_item__calories') * F('amount') / 100)
-        )['total'] or 0
-        calories_data.append(round(total, 1))
-
-    date_labels = [d.strftime('%d.%m') for d in dates]
-
-    fig = go.Figure()
-    fig.add_trace(go.Bar(
-        x=date_labels,
-        y=calories_data,
-        marker=dict(color='rgba(102,126,234,0.8)'),
-        text=calories_data,
-        textposition='outside',
-        name='Калории',
-    ))
-
-    fig.update_layout(
-        plot_bgcolor='rgba(0,0,0,0)',
-        paper_bgcolor='rgba(0,0,0,0)',
-        font=dict(color='#6c757d', size=12),
-        margin=dict(l=20, r=20, t=20, b=20),
-        xaxis=dict(gridcolor='rgba(0,0,0,0.05)'),
-        yaxis=dict(gridcolor='rgba(0,0,0,0.05)'),
-        height=250,
-        showlegend=False,
-    )
-
-    return json.dumps(fig, cls=PlotlyJSONEncoder)
+    })
 
 
 @login_required
 def add_meal(request):
+    """Добавление записи в дневник"""
     if request.method == 'POST':
-        form = MealLogForm(request.POST)
+        form = DiaryEntryForm(request.POST)
         if form.is_valid():
-            meal_log = form.save(commit=False)
-            meal_log.user = request.user
-            meal_log.save()
-            messages.success(request, f'Продукт «{meal_log.food_item.name}» добавлен в дневник!')
+            entry = form.save(commit=False)
+            entry.user = request.user
+            entry.save()
+            messages.success(request, 'Запись добавлена!')
             return redirect('nutrition:dashboard')
     else:
-        form = MealLogForm()
+        form = DiaryEntryForm(initial={'date': timezone.now().date()})
 
     return render(request, 'nutrition/add_meal.html', {'form': form})
 
 
 @login_required
 def delete_meal(request, pk):
-    meal_log = get_object_or_404(MealLog, pk=pk, user=request.user)
+    """Удаление записи из дневника"""
+    entry = get_object_or_404(DiaryEntry, pk=pk, user=request.user)
     if request.method == 'POST':
-        food_name = meal_log.food_item.name
-        meal_log.delete()
-        messages.success(request, f'Запись о «{food_name}» удалена.')
+        entry.delete()
+        messages.success(request, 'Запись удалена!')
     return redirect('nutrition:dashboard')
 
 
 @login_required
-def log_weight(request):
+def add_food_item(request):
+    """Добавление нового продукта в каталог"""
+    categories = Category.objects.all()
+
     if request.method == 'POST':
-        form = WeightLogForm(request.POST)
-        if form.is_valid():
-            weight_log = form.save(commit=False)
-            weight_log.user = request.user
+        name = request.POST.get('name', '').strip()
+        category_id = request.POST.get('category', '')
+        calories = request.POST.get('calories', 0)
+        protein = request.POST.get('protein', 0)
+        carbs = request.POST.get('carbs', 0)
+        fat = request.POST.get('fat', 0)
+        emoji = request.POST.get('emoji', '🍽️')
+        price = request.POST.get('price_per_100g', None)
 
-            profile, _ = UserProfile.objects.get_or_create(user=request.user)
-            profile.weight = weight_log.weight
-            profile.save()
-
-            WeightLog.objects.update_or_create(
-                user=request.user,
-                date=weight_log.date,
-                defaults={
-                    'weight': weight_log.weight,
-                    'notes': weight_log.notes
-                }
+        if name and category_id and calories:
+            try:
+                category = Category.objects.get(id=category_id)
+                Product.objects.create(
+                    name=name,
+                    category=category,
+                    calories=float(calories),
+                    protein=float(protein) if protein else 0,
+                    carbs=float(carbs) if carbs else 0,
+                    fat=float(fat) if fat else 0,
+                    emoji=emoji,
+                    price_per_100g=float(price) if price else None,
+                )
+                messages.success(
+                    request,
+                    f'Продукт "{name}" добавлен в каталог!'
+                )
+                return redirect('nutrition:food_catalog')
+            except (ValueError, Category.DoesNotExist):
+                messages.error(request, 'Ошибка! Проверьте данные.')
+        else:
+            messages.error(
+                request,
+                'Заполните обязательные поля: название, категория, калории'
             )
-            messages.success(request, f'Вес {weight_log.weight} кг сохранён!')
-            return redirect('nutrition:progress')
-    else:
-        form = WeightLogForm()
 
-    return render(request, 'nutrition/log_weight.html', {'form': form})
+    return render(request, 'nutrition/add_food_item.html', {
+        'categories': categories
+    })
+
+
+@login_required
+def budget_view(request):
+    """Страница управления бюджетом"""
+    today = timezone.now().date()
+
+    budget_plan = BudgetPlan.objects.filter(
+        user=request.user, date=today
+    ).first()
+
+    if request.method == 'POST':
+        form = BudgetForm(request.POST, instance=budget_plan)
+        if form.is_valid():
+            plan = form.save(commit=False)
+            plan.user = request.user
+            existing = BudgetPlan.objects.filter(
+                user=request.user,
+                date=plan.date
+            ).first()
+            if existing and (not plan.pk or existing.pk != plan.pk):
+                existing.daily_budget = plan.daily_budget
+                existing.save()
+                messages.success(request, 'Бюджет обновлён!')
+            else:
+                plan.save()
+                messages.success(request, 'Бюджет сохранён!')
+            return redirect('nutrition:budget')
+    else:
+        form = BudgetForm(instance=budget_plan, initial={'date': today})
+
+    week_budgets = []
+    for i in range(6, -1, -1):
+        day = today - timedelta(days=i)
+        plan = BudgetPlan.objects.filter(
+            user=request.user, date=day
+        ).first()
+
+        entries_that_day = DiaryEntry.objects.filter(
+            user=request.user,
+            date=day,
+            product__price_per_100g__isnull=False
+        ).select_related('product')
+
+        spent = round(sum(
+            e.product.price_per_100g * e.amount_grams / 100
+            for e in entries_that_day
+        ), 2)
+
+        week_budgets.append({
+            'date': day,
+            'budget': plan.daily_budget if plan else 0,
+            'spent': spent,
+            'within': (spent <= plan.daily_budget) if plan else None,
+            'remaining': round(plan.daily_budget - spent, 2) if plan else 0,
+        })
+
+    return render(request, 'nutrition/budget.html', {
+        'form': form,
+        'budget_plan': budget_plan,
+        'week_budgets': week_budgets,
+        'today': today,
+    })
 
 
 @login_required
 def progress(request):
-    weight_logs = WeightLog.objects.filter(
-        user=request.user
-    ).order_by('date').values('date', 'weight', 'notes')
+    """Страница прогресса — графики за 30 дней"""
+    today = timezone.now().date()
+    labels = []
+    calories_data = []
 
-    weight_chart = None
-    if weight_logs.exists():
-        df = pd.DataFrame(list(weight_logs))
-        df['date_str'] = pd.to_datetime(df['date']).dt.strftime('%d.%m.%Y')
+    all_calories = []
+    for i in range(29, -1, -1):
+        day = today - timedelta(days=i)
+        day_entries = DiaryEntry.objects.filter(
+            user=request.user, date=day
+        ).select_related('product')
+        day_calories = sum(e.calories_consumed for e in day_entries)
+        labels.append(day.strftime('%d.%m'))
+        calories_data.append(round(day_calories, 1))
+        if day_calories > 0:
+            all_calories.append(day_calories)
 
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(
-            x=df['date_str'],
-            y=df['weight'],
-            mode='lines+markers',
-            line=dict(color='#667eea', width=3),
-            marker=dict(size=8, color='#764ba2'),
-            name='Вес',
-        ))
-
-        fig.update_layout(
-            plot_bgcolor='rgba(0,0,0,0)',
-            paper_bgcolor='rgba(0,0,0,0)',
-            font=dict(color='#6c757d', size=12),
-            margin=dict(l=20, r=20, t=30, b=20),
-            xaxis=dict(
-                gridcolor='rgba(0,0,0,0.05)',
-                title='Дата',
-                type='category',
-            ),
-            yaxis=dict(
-                gridcolor='rgba(0,0,0,0.05)',
-                title='Вес (кг)',
-            ),
-            height=350,
-            showlegend=False,
-        )
-        weight_chart = json.dumps(fig, cls=PlotlyJSONEncoder)
-
-    thirty_days_ago = date.today() - timedelta(days=30)
-    meal_data = MealLog.objects.filter(
-        user=request.user,
-        date__gte=thirty_days_ago
-    ).values('date', 'food_item__calories', 'amount')
-
-    analytics = {}
-    weekly_chart = None
-
-    if meal_data.exists():
-        df = pd.DataFrame(list(meal_data))
-        df['total_cal'] = df['food_item__calories'] * df['amount'] / 100
-        daily = df.groupby('date')['total_cal'].sum()
-
+    analytics = None
+    if all_calories:
         analytics = {
-            'avg_calories': round(daily.mean(), 1),
-            'max_calories': round(daily.max(), 1),
-            'min_calories': round(daily.min(), 1),
-            'days_tracked': len(daily),
+            'avg_calories': round(sum(all_calories) / len(all_calories)),
+            'max_calories': round(max(all_calories)),
+            'min_calories': round(min(all_calories)),
+            'days_tracked': len(all_calories),
         }
 
-        date_labels = [
-            d.strftime('%d.%m') if hasattr(d, 'strftime') else str(d)
-            for d in daily.index
-        ]
-
-        fig2 = go.Figure()
-        fig2.add_trace(go.Scatter(
-            x=date_labels,
-            y=daily.values.tolist(),
-            mode='lines+markers',
-            line=dict(color='#f6d365', width=2),
-            marker=dict(size=5, color='#fda085'),
-            fill='tozeroy',
-            fillcolor='rgba(246,211,101,0.15)',
-        ))
-
-        fig2.update_layout(
-            plot_bgcolor='rgba(0,0,0,0)',
-            paper_bgcolor='rgba(0,0,0,0)',
-            font=dict(color='#6c757d', size=11),
-            margin=dict(l=20, r=20, t=20, b=20),
-            height=300,
-            showlegend=False,
-            xaxis=dict(type='category'),
-        )
-        weekly_chart = json.dumps(fig2, cls=PlotlyJSONEncoder)
-
-    context = {
-        'weight_logs': list(weight_logs[:10]),
-        'weight_chart': weight_chart,
-        'weekly_chart': weekly_chart,
-        'analytics': analytics,
-    }
-    return render(request, 'nutrition/progress.html', context)
-
-
-def food_catalog(request):
-    form = FoodSearchForm(request.GET or None)
-    foods = FoodItem.objects.select_related('category').all()
-
-    if form.is_valid():
-        query = form.cleaned_data.get('query')
-        category = form.cleaned_data.get('category')
-        max_calories = form.cleaned_data.get('max_calories')
-        sort_by = form.cleaned_data.get('sort_by')
-
-        if query:
-            foods = foods.filter(
-                Q(name__icontains=query) | Q(description__icontains=query)
-            )
-        if category:
-            foods = foods.filter(category=category)
-        if max_calories:
-            foods = foods.filter(calories__lte=max_calories)
-        if sort_by:
-            foods = foods.order_by(sort_by)
-
-    category_stats = FoodCategory.objects.annotate(
-        avg_calories=Avg('food_items__calories'),
-        count=Count('food_items')
-    ).filter(count__gt=0)
-
-    context = {
-        'foods': foods,
-        'form': form,
-        'category_stats': category_stats,
-        'total_count': foods.count(),
-    }
-    return render(request, 'nutrition/food_catalog.html', context)
-
-
-def food_detail(request, pk):
-    food = get_object_or_404(FoodItem, pk=pk)
-
-    fig = go.Figure(data=[go.Bar(
-        x=['Белки', 'Углеводы', 'Жиры', 'Клетчатка'],
-        y=[food.proteins, food.carbohydrates, food.fats, food.fiber],
-        marker=dict(color=['#667eea', '#f6d365', '#f093fb', '#4facfe']),
-        text=[f'{v}г' for v in [food.proteins, food.carbohydrates, food.fats, food.fiber]],
-        textposition='outside',
-    )])
-
-    fig.update_layout(
-        plot_bgcolor='rgba(0,0,0,0)',
-        paper_bgcolor='rgba(0,0,0,0)',
-        font=dict(color='#6c757d', size=12),
-        margin=dict(l=20, r=20, t=20, b=20),
-        height=280,
-        showlegend=False,
-        yaxis=dict(gridcolor='rgba(0,0,0,0.05)', title='г на 100г'),
-    )
-
-    nutrients_chart = json.dumps(fig, cls=PlotlyJSONEncoder)
-
-    similar_foods = FoodItem.objects.filter(
-        category=food.category
-    ).exclude(pk=pk)[:4]
-
-    context = {
-        'food': food,
-        'nutrients_chart': nutrients_chart,
-        'similar_foods': similar_foods,
-    }
-    return render(request, 'nutrition/food_detail.html', context)
-
-
-def search_food_api(request):
-    query = request.GET.get('q', '').strip()
-    if not query or len(query) < 2:
-        return JsonResponse({'results': [], 'error': 'Слишком короткий запрос'})
-
-    app_id = settings.NUTRITIONIX_APP_ID
-    api_key = settings.NUTRITIONIX_API_KEY
-
-    if not app_id or not api_key:
-        demo_data = _get_demo_nutrition_data(query)
-        return JsonResponse({'results': demo_data, 'source': 'demo'})
-
+    daily_goal = 2000
     try:
-        url = 'https://trackapi.nutritionix.com/v2/search/instant'
-        headers = {
-            'x-app-id': app_id,
-            'x-app-key': api_key,
-        }
-        params = {'query': query, 'detailed': True}
-        response = requests.get(url, headers=headers, params=params, timeout=5)
-        response.raise_for_status()
-        data = response.json()
+        if request.user.profile.daily_calorie_goal:
+            daily_goal = request.user.profile.daily_calorie_goal
+    except UserProfile.DoesNotExist:
+        pass
 
-        results = []
-        for item in data.get('common', [])[:5]:
-            results.append({
-                'name': item.get('food_name', ''),
-                'photo': item.get('photo', {}).get('thumb', ''),
-                'calories': item.get('nf_calories', 0),
-            })
-        return JsonResponse({'results': results, 'source': 'api'})
+    total_entries = DiaryEntry.objects.filter(
+        user=request.user
+    ).count()
 
-    except requests.RequestException:
-        demo_data = _get_demo_nutrition_data(query)
-        return JsonResponse({'results': demo_data, 'source': 'demo'})
+    return render(request, 'nutrition/progress.html', {
+        'labels': labels,
+        'calories_data': calories_data,
+        'analytics': analytics,
+        'daily_goal': daily_goal,
+        'total_entries': total_entries,
+        'today': today,
+        'weekly_chart': True,
+    })
 
 
-def _get_demo_nutrition_data(query):
-    demo_foods = [
-        {'name': 'Яблоко', 'calories': 52, 'photo': ''},
-        {'name': 'Банан', 'calories': 89, 'photo': ''},
-        {'name': 'Куриная грудка', 'calories': 165, 'photo': ''},
-        {'name': 'Гречка', 'calories': 343, 'photo': ''},
-        {'name': 'Творог 5%', 'calories': 121, 'photo': ''},
-        {'name': 'Авокадо', 'calories': 160, 'photo': ''},
-        {'name': 'Лосось', 'calories': 208, 'photo': ''},
-        {'name': 'Брокколи', 'calories': 34, 'photo': ''},
-    ]
-    return [f for f in demo_foods if query.lower() in f['name'].lower()]
-
-
-@login_required
 def calorie_calculator(request):
-    profile, _ = UserProfile.objects.get_or_create(user=request.user)
+    """Калькулятор калорий"""
     result = None
 
     if request.method == 'POST':
         try:
-            weight = float(request.POST.get('weight', profile.weight or 70))
-            height = float(request.POST.get('height', profile.height or 170))
-            age = int(request.POST.get('age', profile.age or 25))
-            gender = request.POST.get('gender', profile.gender or 'M')
-            activity = request.POST.get('activity', profile.activity_level or 'moderate')
-            goal = request.POST.get('goal', profile.goal or 'maintain')
+            weight = float(request.POST.get('weight', 0))
+            height = float(request.POST.get('height', 0))
+            age = int(request.POST.get('age', 0))
+            gender = request.POST.get('gender', 'female')
+            activity = request.POST.get('activity', 'moderate')
+            goal = request.POST.get('goal', 'maintain')
 
-            if gender == 'M':
+            if gender == 'male':
                 bmr = 10 * weight + 6.25 * height - 5 * age + 5
             else:
                 bmr = 10 * weight + 6.25 * height - 5 * age - 161
@@ -420,36 +469,116 @@ def calorie_calculator(request):
                 'very_active': 1.9,
             }
             tdee = bmr * multipliers.get(activity, 1.55)
-            adjustments = {'lose': -500, 'maintain': 0, 'gain': 500}
-            final_calories = round(tdee + adjustments.get(goal, 0))
+            adjustments = {'lose': -500, 'maintain': 0, 'gain': 300}
+            tdee += adjustments.get(goal, 0)
 
             result = {
                 'bmr': round(bmr),
                 'tdee': round(tdee),
-                'target': final_calories,
-                'proteins': round(final_calories * 0.3 / 4),
-                'carbs': round(final_calories * 0.45 / 4),
-                'fats': round(final_calories * 0.25 / 9),
+                'protein': round(tdee * 0.3 / 4),
+                'carbs': round(tdee * 0.4 / 4),
+                'fat': round(tdee * 0.3 / 9),
             }
-        except (ValueError, TypeError):
-            messages.error(request, 'Проверьте корректность введённых данных.')
 
-    context = {
-        'profile': profile,
-        'result': result,
-    }
-    return render(request, 'calorie_calculator.html', context)
+            if request.user.is_authenticated:
+                profile, created = UserProfile.objects.get_or_create(
+                    user=request.user
+                )
+                profile.weight = weight
+                profile.height = height
+                profile.age = age
+                profile.gender = gender
+                profile.goal = goal
+                profile.activity_level = activity
+                profile.daily_calorie_goal = tdee
+                profile.save()
+                messages.success(request, 'Норма калорий сохранена!')
+
+        except (ValueError, TypeError):
+            messages.error(request, 'Проверьте введённые данные')
+
+    return render(request, 'nutrition/calorie_calculator.html', {
+        'result': result
+    })
 
 
 @login_required
-def add_food_item(request):
+def log_weight(request):
+    """Запись веса пользователя"""
     if request.method == 'POST':
-        form = FoodItemForm(request.POST, request.FILES)
-        if form.is_valid():
-            food = form.save()
-            messages.success(request, f'Продукт «{food.name}» добавлен в каталог!')
-            return redirect('nutrition:food_detail', pk=food.pk)
-    else:
-        form = FoodItemForm()
+        try:
+            weight = float(request.POST.get('weight', 0))
+            if weight > 0:
+                profile, created = UserProfile.objects.get_or_create(
+                    user=request.user
+                )
+                profile.weight = weight
+                profile.save()
+                messages.success(request, f'Вес {weight} кг сохранён!')
+        except (ValueError, TypeError):
+            messages.error(request, 'Введите корректный вес')
+        return redirect('nutrition:progress')
 
-    return render(request, 'nutrition/add_food_item.html', {'form': form})
+    return render(request, 'nutrition/log_weight.html')
+
+
+def api_search_food(request):
+    """API поиск продуктов — сначала в БД, потом во внешнем API"""
+    query = request.GET.get('q', '').strip()
+    if not query:
+        return JsonResponse({'results': []})
+
+    local_results = Product.objects.filter(
+        name__icontains=query
+    ).select_related('category')[:5]
+
+    if local_results.exists():
+        results = [
+            {
+                'name': item.name,
+                'calories': item.calories,
+                'protein': item.protein,
+                'carbs': item.carbs,
+                'fat': item.fat,
+            }
+            for item in local_results
+        ]
+        return JsonResponse({'results': results, 'source': 'local'})
+
+    try:
+        url = 'https://world.openfoodfacts.org/cgi/search.pl'
+        params = {
+            'search_terms': query,
+            'search_simple': 1,
+            'action': 'process',
+            'json': 1,
+            'page_size': 5,
+        }
+        response = requests.get(url, params=params, timeout=5)
+        data = response.json()
+        products = data.get('products', [])
+
+        results = []
+        for p in products:
+            nutriments = p.get('nutriments', {})
+            cal = nutriments.get('energy-kcal_100g', 0)
+            name = p.get('product_name', '').strip()
+            if cal and name:
+                results.append({
+                    'name': name,
+                    'calories': round(float(cal), 1),
+                    'protein': round(
+                        float(nutriments.get('proteins_100g', 0)), 1
+                    ),
+                    'carbs': round(
+                        float(nutriments.get('carbohydrates_100g', 0)), 1
+                    ),
+                    'fat': round(
+                        float(nutriments.get('fat_100g', 0)), 1
+                    ),
+                })
+
+        return JsonResponse({'results': results[:5], 'source': 'api'})
+
+    except Exception:
+        return JsonResponse({'results': [], 'source': 'error'})
