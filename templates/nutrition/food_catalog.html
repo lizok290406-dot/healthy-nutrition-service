@@ -27,11 +27,16 @@
                 Поиск через Open Food Facts
             </h5>
             <p class="text-muted small mb-3">
-                Начни вводить название продукта. Сначала ищем в нашей базе,
+                Введите название продукта и нажмите «Найти». Сначала ищем в нашей базе,
                 а если не нашли — запрашиваем во внешней базе Open Food Facts.
             </p>
-            <input type="text" id="apiSearchInput" class="form-control"
-                   placeholder="Например: banana, milk, nutella..." autocomplete="off">
+            <div class="input-group">
+                <input type="text" id="apiSearchInput" class="form-control"
+                       placeholder="Например: banana, milk, nutella..." autocomplete="off">
+                <button type="button" id="apiSearchBtn" class="btn btn-primary px-4">
+                    <i class="bi bi-search me-1"></i>Найти
+                </button>
+            </div>
             <div id="apiSearchResults" class="mt-3"></div>
         </div>
     </div>
@@ -168,54 +173,69 @@
 {% block extra_js %}
 <script>
     const apiInput = document.getElementById('apiSearchInput');
+    const apiBtn = document.getElementById('apiSearchBtn');
     const apiResults = document.getElementById('apiSearchResults');
-    let apiTimer = null;
 
-    apiInput.addEventListener('input', function () {
+    function runApiSearch() {
         const q = apiInput.value.trim();
-        clearTimeout(apiTimer);
-
         if (q.length < 2) {
-            apiResults.innerHTML = '';
+            apiResults.innerHTML =
+                '<div class="text-muted small">Введите хотя бы 2 буквы</div>';
             return;
         }
 
         apiResults.innerHTML = '<div class="text-muted small">Ищем…</div>';
 
-        // ждём 400 мс после последнего ввода, чтобы не дёргать сервер на каждую букву
-        apiTimer = setTimeout(function () {
-            fetch('/api/search-food/?q=' + encodeURIComponent(q))
-                .then(function (r) { return r.json(); })
-                .then(function (data) {
-                    const items = data.results || [];
-                    if (items.length === 0) {
-                        apiResults.innerHTML =
-                            '<div class="text-muted small">Ничего не найдено</div>';
-                        return;
-                    }
-                    const source = data.source === 'api'
-                        ? 'внешняя база Open Food Facts'
-                        : 'наша база';
-                    let html = '<div class="small text-muted mb-2">Источник: '
-                        + source + '</div><div class="list-group">';
-                    items.forEach(function (it) {
-                        html += '<div class="list-group-item d-flex '
-                            + 'justify-content-between align-items-center">'
-                            + '<span>' + it.name + '</span>'
-                            + '<span class="text-muted small">'
-                            + it.calories + ' ккал · Б' + it.protein
-                            + ' У' + it.carbs + ' Ж' + it.fat
-                            + '</span></div>';
-                    });
-                    html += '</div>';
-                    apiResults.innerHTML = html;
-                })
-                .catch(function () {
+        fetch('/api/search-food/?q=' + encodeURIComponent(q))
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data.source === 'error') {
                     apiResults.innerHTML =
-                        '<div class="text-danger small">Не удалось получить данные '
-                        + '(на бесплатном хостинге внешний API может быть недоступен).</div>';
+                        '<div class="text-warning small">Внешний сервис не ответил '
+                        + '(возможно, слишком частые запросы). Попробуйте через минуту.</div>';
+                    return;
+                }
+                const items = data.results || [];
+                if (items.length === 0) {
+                    apiResults.innerHTML =
+                        '<div class="text-muted small">Ничего не найдено</div>';
+                    return;
+                }
+                const source = data.source === 'api'
+                    ? 'внешняя база Open Food Facts'
+                    : 'наша база';
+                items.forEach(function (it) {
+                    const url = '/add-food/?name=' + encodeURIComponent(it.name)
+                        + '&calories=' + encodeURIComponent(it.calories)
+                        + '&protein=' + encodeURIComponent(it.protein)
+                        + '&carbs=' + encodeURIComponent(it.carbs)
+                        + '&fat=' + encodeURIComponent(it.fat);
+                    html += '<a href="' + url + '" '
+                        + 'class="list-group-item list-group-item-action '
+                        + 'd-flex justify-content-between align-items-center">'
+                        + '<span>' + it.name + '</span>'
+                        + '<span class="text-muted small">'
+                        + it.calories + ' ккал · Б' + it.protein
+                        + ' У' + it.carbs + ' Ж' + it.fat
+                        + '</span></a>';
                 });
-        }, 400);
+                html += '</div>';
+                apiResults.innerHTML = html;
+            })
+            .catch(function () {
+                apiResults.innerHTML =
+                    '<div class="text-warning small">Open Food Facts не ответил — '
+                    + 'возможно, слишком много запросов подряд. '
+                    + 'Подождите минуту и попробуйте снова.</div>';
+            });
+    }
+
+    apiBtn.addEventListener('click', runApiSearch);
+    apiInput.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            runApiSearch();
+        }
     });
 </script>
 {% endblock %}

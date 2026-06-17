@@ -406,10 +406,13 @@ def add_food_item(request):
             return redirect('nutrition:food_catalog')
         messages.error(request, 'Проверьте правильность заполнения формы.')
     else:
+        # Если пришли с поиска Open Food Facts — подставляем данные из ссылки
         form = FoodItemForm(initial={
-            'protein': 0,
-            'carbs': 0,
-            'fat': 0,
+            'name': request.GET.get('name', ''),
+            'calories': request.GET.get('calories', ''),
+            'protein': request.GET.get('protein', 0),
+            'carbs': request.GET.get('carbs', 0),
+            'fat': request.GET.get('fat', 0),
             'emoji': '🍽️',
         })
 
@@ -609,28 +612,24 @@ def log_weight(request):
 
 
 def api_search_food(request):
-    """API поиск продуктов — сначала в БД, потом во внешнем API"""
+    """Поиск продукта: сначала в нашей базе, затем в Open Food Facts."""
     query = request.GET.get('q', '').strip()
     if not query:
-        return JsonResponse({'results': []})
+        return JsonResponse({'results': [], 'source': 'none'})
 
-    local_results = Product.objects.filter(
-        name__icontains=query
-    ).select_related('category')[:5]
-
-    if local_results.exists():
-        results = [
-            {
-                'name': item.name,
-                'calories': item.calories,
-                'protein': item.protein,
-                'carbs': item.carbs,
-                'fat': item.fat,
-            }
-            for item in local_results
-        ]
+    # 1. Сначала ищем в собственной базе
+    local = Product.objects.filter(name__icontains=query)[:5]
+    if local.exists():
+        results = [{
+            'name': p.name,
+            'calories': p.calories,
+            'protein': p.protein,
+            'carbs': p.carbs,
+            'fat': p.fat,
+        } for p in local]
         return JsonResponse({'results': results, 'source': 'local'})
 
+    # 2. Если в базе ничего нет — обращаемся к Open Food Facts
     try:
         url = 'https://world.openfoodfacts.org/cgi/search.pl'
         params = {
@@ -640,32 +639,28 @@ def api_search_food(request):
             'json': 1,
             'page_size': 20,
         }
+        # Open Food Facts требует "представиться" через User-Agent
         headers = {'User-Agent': 'NutriTrack/1.0 (student project)'}
         response = requests.get(url, params=params, headers=headers, timeout=10)
         data = response.json()
-        products = data.get('products', [])
 
         results = []
-        for p in products:
-            nutriments = p.get('nutriments', {})
-            cal = nutriments.get('energy-kcal_100g', 0)
+        for p in data.get('products', []):
             name = p.get('product_name', '').strip()
-            if cal and name:
+            nutriments = p.get('nutriments', {})
+            calories = nutriments.get('energy-kcal_100g')
+            if name and calories:
                 results.append({
                     'name': name,
-                    'calories': round(float(cal), 1),
-                    'protein': round(
-                        float(nutriments.get('proteins_100g', 0)), 1
-                    ),
-                    'carbs': round(
-                        float(nutriments.get('carbohydrates_100g', 0)), 1
-                    ),
-                    'fat': round(
-                        float(nutriments.get('fat_100g', 0)), 1
-                    ),
+                    'calories': round(calories),
+                    'protein': round(nutriments.get('proteins_100g', 0), 1),
+                    'carbs': round(nutriments.get('carbohydrates_100g', 0), 1),
+                    'fat': round(nutriments.get('fat_100g', 0), 1),
                 })
+            if len(results) >= 5:
+                break
 
-        return JsonResponse({'results': results[:5], 'source': 'api'})
+        return JsonResponse({'results': results, 'source': 'api'})
 
     except Exception:
         return JsonResponse({'results': [], 'source': 'error'})
