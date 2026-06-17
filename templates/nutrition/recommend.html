@@ -5,10 +5,21 @@
 <div class="container py-4">
 
     <h2 class="section-title mb-1">🥗 Подбор продуктов</h2>
-    <p class="text-muted mb-4">
-        Самые выгодные продукты для студента: больше белка за каждый рубль.
-        Задай ограничения по цене и калориям — и подберём подходящее.
+    <p class="text-muted mb-3">
+        Продукты отсортированы по выгодности: сколько белка ты получаешь за
+        потраченные деньги. Задай ограничения по цене и калориям — и подберём подходящее.
     </p>
+
+    <div class="alert alert-light border d-flex gap-2 mb-4">
+        <span style="font-size:1.4rem;">💡</span>
+        <p class="small text-muted mb-0">
+            <strong>Почему белок за деньги?</strong>
+            Белок — самый дорогой и чаще всего дефицитный нутриент в студенческом рационе:
+            крупы и овощи стоят дёшево, а мясо, рыба и творог — дорого. Поэтому по умолчанию
+            продукты ранжируются по тому, сколько граммов белка приходится на потраченные
+            деньги. Сортировку можно сменить ниже.
+        </p>
+    </div>
 
     {% if remaining_calories is not None %}
     <div class="alert alert-info">
@@ -19,7 +30,7 @@
 
     <div class="card p-3 mb-4">
         <form method="get" class="row g-3 align-items-end">
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <label class="form-label fw-bold">Категория</label>
                 <select name="category" class="form-select">
                     <option value="">Все категории</option>
@@ -32,14 +43,22 @@
                 </select>
             </div>
             <div class="col-md-3">
-                <label class="form-label fw-bold">Калорий не больше (100г)</label>
-                <input type="number" name="max_calories" class="form-control"
-                       value="{{ max_calories }}" min="0" placeholder="например: 200">
+                <label class="form-label fw-bold">Сортировка</label>
+                <select name="sort_by" class="form-select">
+                    <option value="protein" {% if sort_by == 'protein' %}selected{% endif %}>Белок за деньги</option>
+                    <option value="cheap" {% if sort_by == 'cheap' %}selected{% endif %}>Сначала дешёвые</option>
+                    <option value="calories" {% if sort_by == 'calories' %}selected{% endif %}>Меньше калорий</option>
+                </select>
             </div>
-            <div class="col-md-3">
-                <label class="form-label fw-bold">Цена не больше (₽/100г)</label>
+            <div class="col-md-2">
+                <label class="form-label fw-bold">Калорий ≤ (100г)</label>
+                <input type="number" name="max_calories" class="form-control"
+                       value="{{ max_calories }}" min="0" placeholder="200">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label fw-bold">Цена ≤ (₽/100г)</label>
                 <input type="number" name="max_price" class="form-control"
-                       value="{{ max_price }}" min="0" step="0.1" placeholder="например: 50">
+                       value="{{ max_price }}" min="0" step="0.1" placeholder="50">
             </div>
             <div class="col-md-2">
                 <button type="submit" class="btn btn-primary w-100">Подобрать</button>
@@ -58,7 +77,7 @@
                         <th>Калории</th>
                         <th>Белки</th>
                         <th>Цена / 100г</th>
-                        <th>Белка на рубль</th>
+                        <th>Белок за 10 ₽</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -71,7 +90,7 @@
                         <td>{{ product.price_per_100g }} ₽</td>
                         <td>
                             <span class="nutrient-pill pill-protein">
-                                {{ product.protein_per_ruble|floatformat:2 }} г/₽
+                                {% widthratio product.protein_per_ruble 1 10 %} г / 10 ₽
                             </span>
                         </td>
                     </tr>

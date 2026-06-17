@@ -196,12 +196,24 @@ def recommend(request):
             pass
 
     # F-объекты: база сама делит "белок / цена" для каждого продукта
+    sort_by = request.GET.get('sort_by', 'protein').strip()
+
     products = products.annotate(
         protein_per_ruble=ExpressionWrapper(
             F('protein') / F('price_per_100g'),
             output_field=FloatField(),
         )
-    ).order_by('-protein_per_ruble')[:15]
+    )
+
+    if sort_by == 'cheap':
+        products = products.order_by('price_per_100g')
+    elif sort_by == 'calories':
+        products = products.order_by('calories')
+    else:
+        sort_by = 'protein'
+        products = products.order_by('-protein_per_ruble')
+
+    products = products[:15]
 
     # Сколько калорий осталось на сегодня (если есть норма в профиле)
     remaining_calories = None
@@ -225,7 +237,9 @@ def recommend(request):
         'max_price': max_price,
         'selected_category': selected_category,
         'remaining_calories': remaining_calories,
+        'sort_by': sort_by,
     })
+    
 
 
 
