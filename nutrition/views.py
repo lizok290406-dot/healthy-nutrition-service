@@ -127,7 +127,7 @@ def food_catalog(request):
     if sort_by in sort_map:
         products_qs = products_qs.order_by(sort_map[sort_by])
 
-    # Поиск по названию без учёта регистра (в том числе для русских букв)
+    # Поиск по названию без учёта регистра
     if query:
         q_lower = query.lower()
         foods = [p for p in products_qs if q_lower in p.name.lower()]

@@ -13,6 +13,5 @@ class CustomUserAdmin(UserAdmin):
     inlines = [UserProfileInline]
 
 
-# Перерегистрируем User с нашим кастомным Admin
 admin.site.unregister(User)
 admin.site.register(User, CustomUserAdmin)
