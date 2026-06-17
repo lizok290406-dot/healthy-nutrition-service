@@ -66,7 +66,6 @@ class ProfileUpdateForm(forms.ModelForm):
             'height',
             'activity_level',
             'goal',
-            'daily_calorie_goal',
         ]
 
         labels = {
@@ -76,7 +75,6 @@ class ProfileUpdateForm(forms.ModelForm):
             'height': 'Рост',
             'activity_level': 'Уровень активности',
             'goal': 'Цель',
-            'daily_calorie_goal': 'Дневная норма калорий',
         }
 
         widgets = {
@@ -105,11 +103,5 @@ class ProfileUpdateForm(forms.ModelForm):
             }),
             'goal': forms.Select(attrs={
                 'class': 'form-control'
-            }),
-            'daily_calorie_goal': forms.NumberInput(attrs={
-                'class': 'form-control',
-                'step': '1',
-                'min': '0',
-                'placeholder': 'Например, 2000'
             }),
         }

@@ -65,7 +65,7 @@ def logout_view(request):
 def profile_view(request):
     """Страница профиля пользователя"""
     # get_object_or_404 — если профиля нет, выдаст ошибку 404
-    profile = get_object_or_404(UserProfile, user=request.user)
+    profile, _ = UserProfile.objects.get_or_create(user=request.user)
 
     if request.method == 'POST':
         form = ProfileUpdateForm(request.POST, request.FILES, instance=profile)

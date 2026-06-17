@@ -638,9 +638,10 @@ def api_search_food(request):
             'search_simple': 1,
             'action': 'process',
             'json': 1,
-            'page_size': 5,
+            'page_size': 20,
         }
-        response = requests.get(url, params=params, timeout=5)
+        headers = {'User-Agent': 'NutriTrack/1.0 (student project)'}
+        response = requests.get(url, params=params, headers=headers, timeout=10)
         data = response.json()
         products = data.get('products', [])
 
